@@ -6,6 +6,7 @@ LOGGER = logging.getLogger(__name__)
 
 class TestHederaAnonCredsFullFlow:
     """Aggregate operation flows."""
+
     def test_flow(self, issuer, holder, Something):
         """Test full flow of credential issuance and revocation."""
         print("""
@@ -38,12 +39,12 @@ class TestHederaAnonCredsFullFlow:
               +-----------------------------------------+
               """)
         resp = issuer.create_invitation(
-                alias="Holder",
-                goal="To issue a test credential",
-                label="Invitation to Holder"
-                )
+            alias="Holder",
+            goal="To issue a test credential",
+            label="Invitation to Holder",
+        )
 
-        invitation= resp.get("invitation")
+        invitation = resp.get("invitation")
         assert invitation
 
         time.sleep(10)
@@ -89,9 +90,7 @@ class TestHederaAnonCredsFullFlow:
         key_type = "ed25519"
         key_type_capitalized = key_type.capitalize()
 
-        resp = issuer.register_did(
-                key_type=key_type_capitalized
-                )
+        resp = issuer.register_did(key_type=key_type_capitalized)
 
         assert resp.get("key_type") == key_type
 
@@ -108,11 +107,11 @@ class TestHederaAnonCredsFullFlow:
         schema_version = "1.0"
 
         resp = issuer.register_schema(
-                name=schema_name,
-                version=schema_version,
-                issuer_id=issuer_did,
-                attribute_names=schema_attribute_names
-                )
+            name=schema_name,
+            version=schema_version,
+            issuer_id=issuer_did,
+            attribute_names=schema_attribute_names,
+        )
 
         schema_state = resp.get("schema_state")
         assert schema_state
@@ -130,10 +129,8 @@ class TestHederaAnonCredsFullFlow:
         credential_definition_tag = "default"
 
         resp = issuer.register_credential_definition(
-                schema_id=schema_id,
-                issuer_id=issuer_did,
-                tag=credential_definition_tag
-                )
+            schema_id=schema_id, issuer_id=issuer_did, tag=credential_definition_tag
+        )
 
         credential_definition_state = resp.get("credential_definition_state")
         assert credential_definition_state
@@ -148,27 +145,29 @@ class TestHederaAnonCredsFullFlow:
         assert credential_definition.get("type") == "CL"
         assert credential_definition.get("value")
         assert credential_definition.get("value").get("primary") == {
-                "n": Something,
-                "r": Something,
-                "rctxt": Something,
-                "s": Something,
-                "z": Something,
-                }
+            "n": Something,
+            "r": Something,
+            "rctxt": Something,
+            "s": Something,
+            "z": Something,
+        }
         assert credential_definition.get("value").get("revocation") == {
-                "g": Something,
-                "g_dash": Something,
-                "h": Something,
-                "h0": Something,
-                "h1": Something,
-                "h2": Something,
-                "h_cap": Something,
-                "htilde": Something,
-                "pk": Something,
-                "u": Something,
-                "y": Something,
-                }
+            "g": Something,
+            "g_dash": Something,
+            "h": Something,
+            "h0": Something,
+            "h1": Something,
+            "h2": Something,
+            "h_cap": Something,
+            "htilde": Something,
+            "pk": Something,
+            "u": Something,
+            "y": Something,
+        }
 
-        credential_definition_id = credential_definition_state.get("credential_definition_id")
+        credential_definition_id = credential_definition_state.get(
+            "credential_definition_id"
+        )
         assert credential_definition_id
 
         time.sleep(10)
@@ -181,27 +180,27 @@ class TestHederaAnonCredsFullFlow:
         resp = issuer.get_active_revocation_registry(credential_definition_id)
 
         assert resp == {
-                "result": {
-                        "state": "finished",
-                        "record_id": Something,
-                        "cred_def_id": credential_definition_id,
-                        "issuer_did": issuer_did,
-                        "max_cred_num": Something,
-                        "revoc_def_type": "CL_ACCUM",
-                        "revoc_reg_id": Something,
-                        "revoc_reg_def": {
-                            "ver": Something,
-                            "id": Something,
-                            "revocDefType": "CL_ACCUM",
-                            "tag": Something,
-                            "credDefId": Something,
-                            },
-                        "tag": Something,
-                        "tails_hash": Something,
-                        "tails_local_path": Something,
-                        "pending_pub": Something
-                    }
-                }
+            "result": {
+                "state": "finished",
+                "record_id": Something,
+                "cred_def_id": credential_definition_id,
+                "issuer_did": issuer_did,
+                "max_cred_num": Something,
+                "revoc_def_type": "CL_ACCUM",
+                "revoc_reg_id": Something,
+                "revoc_reg_def": {
+                    "ver": Something,
+                    "id": Something,
+                    "revocDefType": "CL_ACCUM",
+                    "tag": Something,
+                    "credDefId": Something,
+                },
+                "tag": Something,
+                "tails_hash": Something,
+                "tails_local_path": Something,
+                "pending_pub": Something,
+            }
+        }
 
         print("""
               ###########################################
@@ -214,20 +213,16 @@ class TestHederaAnonCredsFullFlow:
               +-----------------------------------------+
               """)
         resp = issuer.issue_credential(
-                connection_id=issuer_connection_id,
-                cred_def_id=credential_definition_id,
-                issuer_id=issuer_did,
-                schema_id=schema_id,
-                attributes=[
-                    {
-                        "name": attribute_name,
-                        "value": f"{attribute_name}_val"
-                    }
-                    for attribute_name
-                    in schema_attribute_names
-                    ],
-                comment="Auto generated credential for test"
-                )
+            connection_id=issuer_connection_id,
+            cred_def_id=credential_definition_id,
+            issuer_id=issuer_did,
+            schema_id=schema_id,
+            attributes=[
+                {"name": attribute_name, "value": f"{attribute_name}_val"}
+                for attribute_name in schema_attribute_names
+            ],
+            comment="Auto generated credential for test",
+        )
 
         issuer_cred_ex_id = resp.get("cred_ex_id")
         assert issuer_cred_ex_id
@@ -273,12 +268,11 @@ class TestHederaAnonCredsFullFlow:
               |    Holder stores accepted credential    |
               +-----------------------------------------+
               """)
-        local_credential_id = "123"
+        local_credential_id = f"local_credential{int(time.time())}"
 
         holder.store_credential(
-                cred_ex_id=holder_cred_ex_id,
-                credential_id=local_credential_id
-                )
+            cred_ex_id=holder_cred_ex_id, credential_id=local_credential_id
+        )
 
         time.sleep(10)
 
@@ -293,12 +287,12 @@ class TestHederaAnonCredsFullFlow:
               +-----------------------------------------+
               """)
         resp = issuer.send_presentation_proof_request(
-                connection_id=issuer_connection_id,
-                cred_def_id=credential_definition_id,
-                attributes=schema_attribute_names,
-                version=schema_version,
-                comment="Credential validation of holder should be valid"
-                )
+            connection_id=issuer_connection_id,
+            cred_def_id=credential_definition_id,
+            attributes=schema_attribute_names,
+            version=schema_version,
+            comment="Credential validation of holder should be valid",
+        )
 
         assert resp.get("state") == "request-sent"
 
@@ -329,10 +323,10 @@ class TestHederaAnonCredsFullFlow:
               +-----------------------------------------+
               """)
         holder.accept_proof_request(
-                pres_ex_id=holder_pres_ex_id,
-                cred_id=local_credential_id,
-                attributes=schema_attribute_names
-                )
+            pres_ex_id=holder_pres_ex_id,
+            cred_id=local_credential_id,
+            attributes=schema_attribute_names,
+        )
 
         time.sleep(10)
 
@@ -356,6 +350,89 @@ class TestHederaAnonCredsFullFlow:
         time.sleep(10)
 
         print("""
+              #######################################################################
+              #    Present proof of valid credential (with non-revocation proof)    #
+              #######################################################################
+              """)
+        print("""
+              +-----------------------------------------+
+              | Issuer send presentation proof request  |
+              +-----------------------------------------+
+              """)
+        resp = issuer.send_presentation_proof_request(
+            connection_id=issuer_connection_id,
+            cred_def_id=credential_definition_id,
+            attributes=schema_attribute_names,
+            version=schema_version,
+            comment="Credential validation of holder should be valid with non-revocation proof",
+            non_revoked={"to": int(time.time()) + 300},
+        )
+
+        assert resp.get("state") == "request-sent"
+
+        time.sleep(10)
+
+        print("""
+              +-----------------------------------------+
+              |    Holder retrieves pres exchange id    |
+              +-----------------------------------------+
+              """)
+        resp = holder.get_presentation_proof_records(state="request-received")
+
+        presentation_proof_records_results = resp.get("results")
+        assert presentation_proof_records_results
+        assert type(presentation_proof_records_results) is list
+        assert len(presentation_proof_records_results) == 1
+
+        [presentation_proof_record] = presentation_proof_records_results
+
+        assert presentation_proof_record.get("state") == "request-received"
+
+        holder_pres_ex_id = presentation_proof_record.get("pres_ex_id")
+        assert holder_pres_ex_id
+
+        print("""
+              +-----------------------------------------+
+              |   Holder accepts presentation request   |
+              +-----------------------------------------+
+              """)
+        holder.accept_proof_request(
+            pres_ex_id=holder_pres_ex_id,
+            cred_id=local_credential_id,
+            attributes=schema_attribute_names,
+        )
+
+        time.sleep(10)
+
+        print("""
+              +-----------------------------------------+
+              |   Issuer checks presentation request    |
+              +-----------------------------------------+
+              """)
+        resp = issuer.get_presentation_proof_records()
+
+        presentation_proof_records_results = resp.get("results")
+        assert presentation_proof_records_results
+        assert type(presentation_proof_records_results) is list
+        assert len(presentation_proof_records_results) == 2
+
+        # List is not ordered
+        presentation_proof_records_results.sort(key=lambda x: x.get("created_at"))
+
+        [
+            first_presentation_proof_records_result,
+            second_presentation_proof_records_result,
+        ] = presentation_proof_records_results
+
+        assert first_presentation_proof_records_result.get("state") == "done"
+        assert first_presentation_proof_records_result.get("verified") == "true"
+
+        assert second_presentation_proof_records_result.get("state") == "done"
+        assert second_presentation_proof_records_result.get("verified") == "true"
+
+        time.sleep(10)
+
+        print("""
               ###########################################
               #  Present proof of revoked credential    #
               ###########################################
@@ -366,9 +443,8 @@ class TestHederaAnonCredsFullFlow:
               +-----------------------------------------+
               """)
         issuer.revoke_credential(
-                cred_ex_id=issuer_cred_ex_id,
-                comment="Test credential revocation"
-                )
+            cred_ex_id=issuer_cred_ex_id, comment="Test credential revocation"
+        )
 
         time.sleep(10)
 
@@ -378,15 +454,13 @@ class TestHederaAnonCredsFullFlow:
               +-----------------------------------------+
               """)
         issuer.send_presentation_proof_request(
-                connection_id=issuer_connection_id,
-                cred_def_id=credential_definition_id,
-                attributes=schema_attribute_names,
-                version=schema_version,
-                comment="Credential validation of holder that is now revoked",
-                non_revoked={
-                    "to": int(time.time()) + 300
-                    }
-                )
+            connection_id=issuer_connection_id,
+            cred_def_id=credential_definition_id,
+            attributes=schema_attribute_names,
+            version=schema_version,
+            comment="Credential validation of holder that is now revoked",
+            non_revoked={"to": int(time.time()) + 300},
+        )
 
         time.sleep(10)
 
@@ -415,10 +489,10 @@ class TestHederaAnonCredsFullFlow:
               +-----------------------------------------+
               """)
         holder.accept_proof_request(
-                pres_ex_id=pres_ex_id,
-                cred_id=local_credential_id,
-                attributes=schema_attribute_names
-                )
+            pres_ex_id=pres_ex_id,
+            cred_id=local_credential_id,
+            attributes=schema_attribute_names,
+        )
 
         time.sleep(10)
 
@@ -433,18 +507,22 @@ class TestHederaAnonCredsFullFlow:
         presentation_proof_records_results = resp.get("results")
         assert presentation_proof_records_results
         assert type(presentation_proof_records_results) is list
-        assert len(presentation_proof_records_results) == 2
+        assert len(presentation_proof_records_results) == 3
 
-        # List sometimes comes out of order
+        # List is not ordered
         presentation_proof_records_results.sort(key=lambda x: x.get("created_at"))
 
         [
-          first_presentation_proof_records_result,
-          second_presentation_proof_records_result
+            first_presentation_proof_records_result,
+            second_presentation_proof_records_result,
+            third_presentation_proof_records_result,
         ] = presentation_proof_records_results
 
         assert first_presentation_proof_records_result.get("state") == "done"
         assert first_presentation_proof_records_result.get("verified") == "true"
 
         assert second_presentation_proof_records_result.get("state") == "done"
-        assert second_presentation_proof_records_result.get("verified") == "false"
+        assert second_presentation_proof_records_result.get("verified") == "true"
+
+        assert third_presentation_proof_records_result.get("state") == "done"
+        assert third_presentation_proof_records_result.get("verified") == "false"

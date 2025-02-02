@@ -9,8 +9,6 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      args:
-        GITHUB_TOKEN: ${GITHUB_TOKEN}
     command: start --arg-file integration.yml --label holder -e http://holder:3000 --log-level info
 
   issuer:
@@ -18,8 +16,6 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      args:
-        GITHUB_TOKEN: ${GITHUB_TOKEN}
     command: start --arg-file integration.yml --label issuer -e http://issuer:3000 --log-level info
 
   tails:
@@ -33,14 +29,6 @@ services:
       --port 6543
       --storage-path /tmp/tails-files
       --log-level info
-
-  dummy-webhook-server:
-    image: python:3.9-slim
-    ports:
-      - 8080:8080
-    command: python /opt/dummy-web-server.py 8080
-    volumes:
-      - ./dummy-web-server.py:/opt/dummy-web-server.py
 
   tests:
       container_name: juggernaut
@@ -57,4 +45,3 @@ services:
         - holder
         - issuer
         - tails
-        - dummy-webhook-server

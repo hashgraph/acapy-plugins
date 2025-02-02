@@ -8,8 +8,9 @@ from acapy_agent.resolver.base import BaseDIDResolver, ResolverError, ResolverTy
 from did_sdk_py.did.hedera_did_resolver import HederaDidResolver as SdkHederaDidResolver
 from did_sdk_py.did.types import DIDResolutionResult
 
-from .client import get_client_provider
-from .config import Config
+from ..client import get_client_provider
+from ..config import Config
+
 
 class HederaDIDResolver(BaseDIDResolver):
     """Hedera DID resolver."""
@@ -17,12 +18,12 @@ class HederaDIDResolver(BaseDIDResolver):
     def __init__(self):
         """Constructor."""
         super().__init__(ResolverType.NATIVE)
-        self._suported_did_regex = re.compile("^did:hedera:.*$")
+        self._supported_did_regex = re.compile("^did:hedera:.*$")
 
     @property
     def supported_did_regex(self) -> Pattern:
         """Return list of supported methods."""
-        return self._suported_did_regex
+        return self._supported_did_regex
 
     async def setup(self, context):
         """Setup resolver based on current context."""
@@ -36,7 +37,7 @@ class HederaDIDResolver(BaseDIDResolver):
 
         self._hedera_did_resolver = SdkHederaDidResolver(client_provider)
 
-    async def _resolve(self, profile: Profile, did: str, service_accept = None) -> dict:
+    async def _resolve(self, profile: Profile, did: str, service_accept=None) -> dict:
         """Resolve Hedera DID."""
         result: DIDResolutionResult = await self._hedera_did_resolver.resolve(did)
 

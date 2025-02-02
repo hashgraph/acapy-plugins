@@ -7,6 +7,7 @@ from typing import Optional
 from acapy_agent.config.base import BaseSettings
 from acapy_agent.config.settings import Settings
 
+
 class ConfigError(ValueError):
     """Base class for configuration errors."""
 
@@ -16,6 +17,7 @@ class ConfigError(ValueError):
             f"Invalid {var} specified for Hedera DID plugin; use either "
             f"hedera_did.{var} plugin config value or environment variable {env}"
         )
+
 
 @dataclass
 class Config:
@@ -32,19 +34,21 @@ class Config:
         assert isinstance(settings, Settings)
         plugin_settings = settings.for_plugin("hedera_did")
 
-        network: Optional[str] = (plugin_settings.get("network")
-                                  or getenv("HEDERA_DID_NETWORK"))
-        operator_id: Optional[str] = (plugin_settings.get("operator_id")
-                                      or getenv("HEDERA_DID_OPERATOR_ID"))
-        operator_key_der: Optional[str] = (plugin_settings.get("operator_key_der")
-                                           or getenv("HEDERA_DID_OPERATOR_KEY_DER"))
+        network: Optional[str] = plugin_settings.get("network") or getenv(
+            "HEDERA_NETWORK"
+        )
+        operator_id: Optional[str] = plugin_settings.get("operator_id") or getenv(
+            "HEDERA_OPERATOR_ID"
+        )
+        operator_key_der: Optional[str] = plugin_settings.get(
+            "operator_key_der"
+        ) or getenv("HEDERA_OPERATOR_KEY")
 
         if not network:
-            raise ConfigError("network", "HEDERA_DID_NETWORK")
+            raise ConfigError("network", "HEDERA_NETWORK")
         if not operator_id:
-            raise ConfigError("operator_id", "HEDERA_DID_OPERATOR_ID")
+            raise ConfigError("operator_id", "HEDERA_OPERATOR_ID")
         if not operator_key_der:
-            raise ConfigError("operator_key_der", "HEDERA_DID_OPERATOR_KEY_DER")
+            raise ConfigError("operator_key_der", "HEDERA_OPERATOR_KEY")
 
         return cls(network, operator_id, operator_key_der)
-

@@ -4,7 +4,12 @@ All plugins should have a suite of integration tests. We use `docker compose` to
 
 ## Build and run Tests
 
-The integration tests will start 1 agents - bob - and a juggernaut container that will execute the tests. Test results will be found in the juggernaut container output. The juggernaut container should close itself down, the logs can be reviewed in the `Docker` view, open `Containers`, open `integration`, right-click the `integration-tests` container and select `View Logs`
+The integration tests will start following instances:
+- 2 ACA-Py agents - Issuer and Holder
+- Indy Tails Server (required for revocation support, see [GH repo](https://github.com/bcgov/indy-tails-server))
+- Juggernaut container that will execute the tests
+
+Test results will be found in the juggernaut container output. The juggernaut container should close itself down, the logs can be reviewed in the `Docker` view, open `Containers`, open `integration`, right-click the `integration-tests` container and select `View Logs`
 
 ```sh
 # open a terminal in vs code

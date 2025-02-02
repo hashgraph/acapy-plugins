@@ -18,22 +18,18 @@ plugin-config: plugins-config.yml
 
 genesis-url: http://test.bcovrin.vonx.io/genesis
 
-wallet-name: default
-wallet-type: askar-anoncreds
-wallet-key: "insecure, for use in demo only"
-
 log-level: info
 
-debug-connections: true
 auto-accept-invites: true
 auto-accept-requests: true
-auto-ping-connection: true
-auto-respond-messages: true
 
-# Tails server connection is needed for revocation feature
-# See Indy Tails server repo: https://github.com/bcgov/indy-tails-server
-# tails-server-base-url: <CHANGE_ME>
+wallet-type: askar-anoncreds
+wallet-storage-type: default
+wallet-name: test-provider-wallet
+wallet-key: test-provider-key
 
 multitenant: true
 multitenant-admin: true
 jwt-secret: test
+
+tails-server-base-url: http://tails:6543
