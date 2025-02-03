@@ -103,7 +103,7 @@ def post_process_routes(app: web.Application):
 
     app_state["swagger_dict"]["tags"].append(
         {
-            "name": "Hedera",
+            "name": "hedera",
             "description": "Hedera plugin API",
             "externalDocs": {
                 "description": "Specification",

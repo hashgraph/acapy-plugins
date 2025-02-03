@@ -1,4 +1,4 @@
-"""Translate between data classes."""
+"""Helpers fpr mapping AnonCreds-related data classes."""
 
 from acapy_agent.anoncreds.base import (
     AnonCredsSchema as AcapyAnonCredsSchema,
@@ -50,8 +50,8 @@ from did_sdk_py.anoncreds.types import (
 )
 
 
-def buildHederaAnonCredsSchema(schema: AcapyAnonCredsSchema) -> HederaAnonCredsSchema:
-    """Translate object."""
+def build_hedera_anoncreds_schema(schema: AcapyAnonCredsSchema) -> HederaAnonCredsSchema:
+    """Map object."""
     return HederaAnonCredsSchema(
         name=schema.name,
         issuer_id=schema.issuer_id,
@@ -60,10 +60,10 @@ def buildHederaAnonCredsSchema(schema: AcapyAnonCredsSchema) -> HederaAnonCredsS
     )
 
 
-def buildHederaAnonCredsCredDef(
+def build_hedera_anoncreds_cred_def(
     cred_def: AcapyAnonCredsCredDef,
 ) -> HederaAnonCredsCredDef:
-    """Translate object."""
+    """Map object."""
     revocation = (
         HederaCredDefValueRevocation(
             g=cred_def.value.revocation.g,
@@ -99,10 +99,57 @@ def buildHederaAnonCredsCredDef(
     )
 
 
-def buildAcapyGetCredDefResult(
+def build_hedera_anoncreds_rev_reg_def(
+    revocation_registry_definition: AcapyRevRegDef,
+) -> HederaAnonCredsRevRegDef:
+    """Map object."""
+    return HederaAnonCredsRevRegDef(
+        issuer_id=revocation_registry_definition.issuer_id,
+        cred_def_id=revocation_registry_definition.cred_def_id,
+        tag=revocation_registry_definition.tag,
+        value=HederaRevRegDefValue(
+            public_keys=revocation_registry_definition.value.public_keys,
+            max_cred_num=revocation_registry_definition.value.max_cred_num,
+            tails_location=revocation_registry_definition.value.tails_location,
+            tails_hash=revocation_registry_definition.value.tails_hash,
+        ),
+    )
+
+
+def build_hedera_anoncreds_rev_list(rev_list: AcapyRevList) -> HederaAnonCredsRevList:
+    """Map object."""
+    return HederaAnonCredsRevList(
+        issuer_id=rev_list.issuer_id,
+        rev_reg_def_id=rev_list.rev_reg_def_id,
+        revocation_list=rev_list.revocation_list,
+        current_accumulator=rev_list.current_accumulator,
+        timestamp=rev_list.timestamp,
+    )
+
+
+def build_acapy_get_schema_result(
+    hedera_res: HederaGetSchemaResult,
+) -> AcapyGetSchemaResult:
+    """Map object."""
+    assert hedera_res.schema
+
+    return AcapyGetSchemaResult(
+        schema=AcapyAnonCredsSchema(
+            issuer_id=hedera_res.schema.issuer_id,
+            attr_names=hedera_res.schema.attr_names,
+            name=hedera_res.schema.name,
+            version=hedera_res.schema.version,
+        ),
+        schema_id=hedera_res.schema_id,
+        resolution_metadata=hedera_res.resolution_metadata,
+        schema_metadata=hedera_res.schema_metadata,
+    )
+
+
+def build_acapy_get_cred_def_result(
     hedera_res: HederaGetCredDefResult,
 ) -> AcapyGetCredDefResult:
-    """Translate object."""
+    """Map object."""
     assert hedera_res.credential_definition
 
     revocation = (
@@ -146,25 +193,54 @@ def buildAcapyGetCredDefResult(
     )
 
 
-def buildAcapyGetSchemaResult(hedera_res: HederaGetSchemaResult) -> AcapyGetSchemaResult:
-    """Translate object."""
-    assert hedera_res.schema
+def build_acapy_get_rev_reg_def_result(
+    hedera_res: HederaGetRevRegDefResult,
+) -> AcapyGetRevRegDefResult:
+    """Map object."""
+    assert hedera_res.revocation_registry_definition is not None
 
-    return AcapyGetSchemaResult(
-        schema=AcapyAnonCredsSchema(
-            issuer_id=hedera_res.schema.issuer_id,
-            attr_names=hedera_res.schema.attr_names,
-            name=hedera_res.schema.name,
-            version=hedera_res.schema.version,
+    return AcapyGetRevRegDefResult(
+        revocation_registry=AcapyRevRegDef(
+            issuer_id=hedera_res.revocation_registry_definition.issuer_id,
+            type="CL_ACCUM",
+            cred_def_id=hedera_res.revocation_registry_definition.cred_def_id,
+            tag=hedera_res.revocation_registry_definition.tag,
+            value=AcapyRevRegDefValue(
+                hedera_res.revocation_registry_definition.value.public_keys,
+                hedera_res.revocation_registry_definition.value.max_cred_num,
+                hedera_res.revocation_registry_definition.value.tails_location,
+                hedera_res.revocation_registry_definition.value.tails_hash,
+            ),
         ),
-        schema_id=hedera_res.schema_id,
+        revocation_registry_id=hedera_res.revocation_registry_definition_id,
         resolution_metadata=hedera_res.resolution_metadata,
-        schema_metadata=hedera_res.schema_metadata,
+        revocation_registry_metadata=hedera_res.revocation_registry_definition_metadata,
     )
 
 
-def buildAcapySchemaResult(res: HederaSchemaResult, *, job_id=None) -> AcapySchemaResult:
-    """Translate object."""
+def build_acapy_get_rev_list_result(
+    hedera_res: HederaGetRevListResult,
+) -> AcapyGetRevListResult:
+    """Map object."""
+    assert hedera_res.revocation_list is not None
+
+    return AcapyGetRevListResult(
+        revocation_list=AcapyRevList(
+            issuer_id=hedera_res.revocation_list.issuer_id,
+            rev_reg_def_id=hedera_res.revocation_list.rev_reg_def_id,
+            revocation_list=hedera_res.revocation_list.revocation_list,
+            current_accumulator=hedera_res.revocation_list.current_accumulator,
+            timestamp=hedera_res.revocation_list.timestamp,
+        ),
+        resolution_metadata=hedera_res.resolution_metadata,
+        revocation_registry_metadata=hedera_res.revocation_list_metadata,
+    )
+
+
+def build_acapy_schema_result(
+    res: HederaSchemaResult, *, job_id=None
+) -> AcapySchemaResult:
+    """Map object."""
     return AcapySchemaResult(
         job_id=job_id,
         schema_state=AcapySchemaState(
@@ -182,10 +258,10 @@ def buildAcapySchemaResult(res: HederaSchemaResult, *, job_id=None) -> AcapySche
     )
 
 
-def buildAcapyCredDefResult(
+def build_acapy_cred_def_result(
     hedera_res: HederaCredDefResult, *, job_id=None
 ) -> AcapyCredDefResult:
-    """Translate object."""
+    """Map object."""
     state = hedera_res.credential_definition_state
     cred_def = state.credential_definition
     value = cred_def.value
@@ -237,31 +313,10 @@ def buildAcapyCredDefResult(
     )
 
 
-def buildAcapyRevListResult(
-    hedera_res: HederaRegisterRevListResult, *, job_id=None
-) -> AcapyRevListResult:
-    """Translate object."""
-    return AcapyRevListResult(
-        job_id=job_id,
-        revocation_list_state=AcapyRevListState(
-            state=hedera_res.revocation_list_state.state,
-            revocation_list=AcapyRevList(
-                issuer_id=hedera_res.revocation_list_state.revocation_list.issuer_id,
-                rev_reg_def_id=hedera_res.revocation_list_state.revocation_list.rev_reg_def_id,
-                revocation_list=hedera_res.revocation_list_state.revocation_list.revocation_list,
-                current_accumulator=hedera_res.revocation_list_state.revocation_list.current_accumulator,
-                timestamp=hedera_res.revocation_list_state.revocation_list.timestamp,
-            ),
-        ),
-        registration_metadata=hedera_res.registration_metadata,
-        revocation_list_metadata=hedera_res.revocation_list_metadata,
-    )
-
-
-def buildAcapyRevRegDefResult(
+def build_acapy_rev_reg_def_result(
     hedera_res: HederaRegisterRevRegDefResult, *, job_id=None
 ) -> AcapyRevRegDefResult:
-    """Translate object."""
+    """Map object."""
     assert (
         hedera_res.revocation_registry_definition_state.revocation_registry_definition_id
         is not None
@@ -290,74 +345,22 @@ def buildAcapyRevRegDefResult(
     )
 
 
-def buildAcapyGetRevRegDefResult(
-    hedera_res: HederaGetRevRegDefResult,
-) -> AcapyGetRevRegDefResult:
-    """Translate object."""
-    assert hedera_res.revocation_registry_definition is not None
-
-    return AcapyGetRevRegDefResult(
-        revocation_registry=AcapyRevRegDef(
-            issuer_id=hedera_res.revocation_registry_definition.issuer_id,
-            type="CL_ACCUM",
-            cred_def_id=hedera_res.revocation_registry_definition.cred_def_id,
-            tag=hedera_res.revocation_registry_definition.tag,
-            value=AcapyRevRegDefValue(
-                hedera_res.revocation_registry_definition.value.public_keys,
-                hedera_res.revocation_registry_definition.value.max_cred_num,
-                hedera_res.revocation_registry_definition.value.tails_location,
-                hedera_res.revocation_registry_definition.value.tails_hash,
+def build_acapy_rev_list_result(
+    hedera_res: HederaRegisterRevListResult, *, job_id=None
+) -> AcapyRevListResult:
+    """Map object."""
+    return AcapyRevListResult(
+        job_id=job_id,
+        revocation_list_state=AcapyRevListState(
+            state=hedera_res.revocation_list_state.state,
+            revocation_list=AcapyRevList(
+                issuer_id=hedera_res.revocation_list_state.revocation_list.issuer_id,
+                rev_reg_def_id=hedera_res.revocation_list_state.revocation_list.rev_reg_def_id,
+                revocation_list=hedera_res.revocation_list_state.revocation_list.revocation_list,
+                current_accumulator=hedera_res.revocation_list_state.revocation_list.current_accumulator,
+                timestamp=hedera_res.revocation_list_state.revocation_list.timestamp,
             ),
         ),
-        revocation_registry_id=hedera_res.revocation_registry_definition_id,
-        resolution_metadata=hedera_res.resolution_metadata,
-        revocation_registry_metadata=hedera_res.revocation_registry_definition_metadata,
-    )
-
-
-def buildHederaAnonCredsRevRegDef(
-    revocation_registry_definition: AcapyRevRegDef,
-) -> HederaAnonCredsRevRegDef:
-    """Translate object."""
-    return HederaAnonCredsRevRegDef(
-        issuer_id=revocation_registry_definition.issuer_id,
-        cred_def_id=revocation_registry_definition.cred_def_id,
-        tag=revocation_registry_definition.tag,
-        value=HederaRevRegDefValue(
-            public_keys=revocation_registry_definition.value.public_keys,
-            max_cred_num=revocation_registry_definition.value.max_cred_num,
-            tails_location=revocation_registry_definition.value.tails_location,
-            tails_hash=revocation_registry_definition.value.tails_hash,
-        ),
-    )
-
-
-def buildHederaAnonCredsRevList(rev_list: AcapyRevList) -> HederaAnonCredsRevList:
-    """Translate object."""
-    return HederaAnonCredsRevList(
-        issuer_id=rev_list.issuer_id,
-        rev_reg_def_id=rev_list.rev_reg_def_id,
-        revocation_list=rev_list.revocation_list,
-        current_accumulator=rev_list.current_accumulator,
-        timestamp=rev_list.timestamp,
-    )
-
-
-def buildAcapyGetRevListResult(
-    hedera_res: HederaGetRevListResult,
-) -> AcapyGetRevListResult:
-    """Translate object."""
-    assert hedera_res.revocation_list is not None
-
-    return AcapyGetRevListResult(
-        revocation_list=AcapyRevList(
-            issuer_id=hedera_res.revocation_list.issuer_id,
-            rev_reg_def_id=hedera_res.revocation_list.rev_reg_def_id,
-            revocation_list=hedera_res.revocation_list.revocation_list,
-            current_accumulator=hedera_res.revocation_list.current_accumulator,
-            timestamp=hedera_res.revocation_list.timestamp,
-        ),
-        resolution_metadata=hedera_res.resolution_metadata,
-        # TODO: Why is this different?
-        revocation_registry_metadata=hedera_res.revocation_list_metadata,
+        registration_metadata=hedera_res.registration_metadata,
+        revocation_list_metadata=hedera_res.revocation_list_metadata,
     )

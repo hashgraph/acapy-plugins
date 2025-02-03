@@ -30,18 +30,18 @@ from did_sdk_py.anoncreds.hedera_anoncreds_registry import (
 from ..client import get_client_provider
 from ..config import Config
 from .types import (
-    buildAcapyCredDefResult,
-    buildAcapyGetCredDefResult,
-    buildAcapyGetRevListResult,
-    buildAcapyGetRevRegDefResult,
-    buildAcapyGetSchemaResult,
-    buildAcapyRevListResult,
-    buildAcapyRevRegDefResult,
-    buildAcapySchemaResult,
-    buildHederaAnonCredsCredDef,
-    buildHederaAnonCredsRevList,
-    buildHederaAnonCredsRevRegDef,
-    buildHederaAnonCredsSchema,
+    build_acapy_cred_def_result,
+    build_acapy_get_cred_def_result,
+    build_acapy_get_rev_list_result,
+    build_acapy_get_rev_reg_def_result,
+    build_acapy_get_schema_result,
+    build_acapy_rev_list_result,
+    build_acapy_rev_reg_def_result,
+    build_acapy_schema_result,
+    build_hedera_anoncreds_schema,
+    build_hedera_anoncreds_rev_list,
+    build_hedera_anoncreds_rev_reg_def,
+    build_hedera_anoncreds_cred_def,
 )
 from ..utils import get_private_key_der_from_did, inject_or_fail
 
@@ -94,7 +94,7 @@ class HederaAnonCredsRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
         _validate_resolution_result(hedera_res, "schema")
 
-        return buildAcapyGetSchemaResult(hedera_res)
+        return build_acapy_get_schema_result(hedera_res)
 
     async def get_credential_definition(
         self, profile, credential_definition_id
@@ -106,7 +106,7 @@ class HederaAnonCredsRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
         _validate_resolution_result(hedera_res, "credential_definition")
 
-        return buildAcapyGetCredDefResult(hedera_res)
+        return build_acapy_get_cred_def_result(hedera_res)
 
     async def get_revocation_registry_definition(
         self, profile, revocation_registry_id
@@ -120,7 +120,7 @@ class HederaAnonCredsRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
         assert hedera_res.revocation_registry_definition is not None
 
-        return buildAcapyGetRevRegDefResult(hedera_res)
+        return build_acapy_get_rev_reg_def_result(hedera_res)
 
     async def get_revocation_list(
         self,
@@ -138,7 +138,7 @@ class HederaAnonCredsRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
         assert hedera_res.revocation_list is not None
 
-        return buildAcapyGetRevListResult(hedera_res)
+        return build_acapy_get_rev_list_result(hedera_res)
 
     async def get_schema_info_by_id(self, profile, schema_id) -> AnoncredsSchemaInfo:
         """Get schema info by schema id."""
@@ -164,10 +164,11 @@ class HederaAnonCredsRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             private_key_der = await get_private_key_der_from_did(wallet, issuer_did)
 
             res = await self._hedera_anoncreds_registry.register_schema(
-                schema=buildHederaAnonCredsSchema(schema), issuer_key_der=private_key_der
+                schema=build_hedera_anoncreds_schema(schema),
+                issuer_key_der=private_key_der,
             )
 
-            return buildAcapySchemaResult(res)
+            return build_acapy_schema_result(res)
 
     async def register_credential_definition(
         self, profile, schema, credential_definition, options=None
@@ -180,11 +181,11 @@ class HederaAnonCredsRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             private_key_der = await get_private_key_der_from_did(wallet, issuer_did)
 
             res = await self._hedera_anoncreds_registry.register_cred_def(
-                cred_def=buildHederaAnonCredsCredDef(credential_definition),
+                cred_def=build_hedera_anoncreds_cred_def(credential_definition),
                 issuer_key_der=private_key_der,
             )
 
-            return buildAcapyCredDefResult(res)
+            return build_acapy_cred_def_result(res)
 
     async def register_revocation_registry_definition(
         self, profile, revocation_registry_definition, options=None
@@ -198,7 +199,9 @@ class HederaAnonCredsRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             private_key_der = await get_private_key_der_from_did(wallet, issuer_did)
 
             hedera_res = await self._hedera_anoncreds_registry.register_rev_reg_def(
-                rev_reg_def=buildHederaAnonCredsRevRegDef(revocation_registry_definition),
+                rev_reg_def=build_hedera_anoncreds_rev_reg_def(
+                    revocation_registry_definition
+                ),
                 issuer_key_der=private_key_der,
             )
 
@@ -207,7 +210,7 @@ class HederaAnonCredsRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
                 is not None
             )
 
-            return buildAcapyRevRegDefResult(hedera_res)
+            return build_acapy_rev_reg_def_result(hedera_res)
 
     async def register_revocation_list(
         self, profile, rev_reg_def, rev_list, options=None
@@ -225,10 +228,10 @@ class HederaAnonCredsRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             private_key_der = await get_private_key_der_from_did(wallet, issuer_did)
 
             hedera_res = await self._hedera_anoncreds_registry.register_rev_list(
-                buildHederaAnonCredsRevList(rev_list), private_key_der
+                build_hedera_anoncreds_rev_list(rev_list), private_key_der
             )
 
-            return buildAcapyRevListResult(hedera_res)
+            return build_acapy_rev_list_result(hedera_res)
 
     async def update_revocation_list(
         self, profile, rev_reg_def, prev_list, curr_list, revoked, options=None
@@ -243,8 +246,8 @@ class HederaAnonCredsRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             private_key_der = await get_private_key_der_from_did(wallet, issuer_did)
 
             hedera_res = await self._hedera_anoncreds_registry.update_rev_list(
-                buildHederaAnonCredsRevList(prev_list),
-                buildHederaAnonCredsRevList(curr_list),
+                build_hedera_anoncreds_rev_list(prev_list),
+                build_hedera_anoncreds_rev_list(curr_list),
                 revoked,
                 private_key_der,
             )
@@ -256,4 +259,4 @@ class HederaAnonCredsRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
                 ),
             )
 
-            return buildAcapyRevListResult(hedera_res)
+            return build_acapy_rev_list_result(hedera_res)

@@ -2,6 +2,7 @@ from acapy_agent.anoncreds.base import (
     AnonCredsSchema as AcapyAnonCredsSchema,
     CredDef as AcapyAnonCredsCredDef,
     RevRegDef as AcapyRevRegDef,
+    RevList as AcapyRevList,
 )
 from acapy_agent.anoncreds.models.credential_definition import (
     CredDefValue as AcapyCredDefValue,
@@ -24,26 +25,34 @@ from did_sdk_py.anoncreds.types import (
     AnonCredsRevRegDef as HederaAnonCredsRevRegDef,
     CredDefState as HederaCredDefState,
     GetCredDefResult as HederaGetCredDefResult,
+    GetSchemaResult as HederaGetSchemaResult,
     GetRevRegDefResult as HederaGetRevRegDefResult,
+    GetRevListResult as HederaGetRevListResult,
     RegisterCredDefResult as HederaCredDefResult,
-    RegisterRevListResult as HederaRegisterRevListResult,
+    RegisterRevRegDefResult as HederaRevRegDefResult,
+    RegisterRevListResult as HederaRevListResult,
     RegisterSchemaResult as HederaSchemaResult,
     RevListState as HederaRevListState,
+    RevRegDefState as HederaRevRegDefState,
     SchemaState as HederaSchemaState,
 )
 from hedera_did.anoncreds.types import (
-    buildAcapyCredDefResult,
-    buildAcapyGetRevRegDefResult,
-    buildAcapyRevListResult,
-    buildAcapySchemaResult,
-    buildHederaAnonCredsCredDef,
-    buildHederaAnonCredsRevRegDef,
-    buildHederaAnonCredsSchema,
+    build_acapy_cred_def_result,
+    build_acapy_get_rev_list_result,
+    build_acapy_get_rev_reg_def_result,
+    build_acapy_get_schema_result,
+    build_acapy_rev_list_result,
+    build_acapy_rev_reg_def_result,
+    build_acapy_schema_result,
+    build_hedera_anoncreds_cred_def,
+    build_hedera_anoncreds_rev_list,
+    build_hedera_anoncreds_rev_reg_def,
+    build_hedera_anoncreds_schema,
 )
 
 
 class TestTypes:
-    def testBuildHederaAnonCredsSchema(self):
+    def test_build_hedera_schema(self):
         name = "Example schema"
         issuer_id = (
             "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
@@ -51,7 +60,7 @@ class TestTypes:
         attr_names = ["score"]
         version = "1.0"
 
-        assert buildHederaAnonCredsSchema(
+        assert build_hedera_anoncreds_schema(
             AcapyAnonCredsSchema(
                 name=name, issuer_id=issuer_id, attr_names=attr_names, version=version
             )
@@ -59,15 +68,13 @@ class TestTypes:
             name=name, issuer_id=issuer_id, attr_names=attr_names, version=version
         )
 
-    def testBuildHederaAnonCredsCredDef(self):
+    def test_build_hedera_cred_def(self):
         issuer_id = (
             "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
         )
         schema_id = f"{issuer_id}/anoncreds/v0/SCHEMA/0.0.5284932"
-        tag = "default"
-        type_ = "CL"
-        schema_id = "did:hedera:testnet:zcZMJMxUGZpxKmP35ACBWLhQyQVqtRc5T7LQhdyTDtEiP_0.0.5280965/anoncreds/v0/SCHEMA/0.0.5280967"
         tag = "demo-cred-def-1.0"
+        type_ = "CL"
         n = "0954456694171"
         s = "0954456694171"
         r = {"key": "value"}
@@ -85,7 +92,7 @@ class TestTypes:
         pk = "1 142CD5E5A7DC 1 153885BD903312 2 095E45DDF417D"
         y = "1 153558BD903312 2 095E45DDF417D 1 0000000000000000"
 
-        assert buildHederaAnonCredsCredDef(
+        assert build_hedera_anoncreds_cred_def(
             AcapyAnonCredsCredDef(
                 issuer_id=issuer_id,
                 schema_id=schema_id,
@@ -130,16 +137,107 @@ class TestTypes:
             ),
         )
 
-    def testBuildAcapyGetCredDefResult(self):
-        resolution_metadata = {}
-        credential_definition_metadata = {}
+    def test_build_hedera_rev_reg_def(self):
+        issuer_id = (
+            "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
+        )
+        type_ = "CL_ACCUM"
+        cred_def_id = "did:hedera:testnet:zcZMJMxUGZpxKmP35ACBWLhQyQVqtRc5T7LQhdyTDtEiP_0.0.5280965/anoncreds/v0/PUBLIC_CRED_DEF/0.0.5280968"
+        tag = "demo-cred-def-1.0"
+        public_keys = {}
+        max_cred_num = 999
+        tails_location = "./location/to/tails"
+        tails_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+        hedera_anon_creds_rev_reg_def = build_hedera_anoncreds_rev_reg_def(
+            AcapyRevRegDef(
+                issuer_id=issuer_id,
+                type=type_,
+                cred_def_id=cred_def_id,
+                tag=tag,
+                value=AcapyRevRegDefValue(
+                    public_keys=public_keys,
+                    max_cred_num=max_cred_num,
+                    tails_location=tails_location,
+                    tails_hash=tails_hash,
+                ),
+            )
+        )
+
+        assert hedera_anon_creds_rev_reg_def.issuer_id == issuer_id
+        assert hedera_anon_creds_rev_reg_def.cred_def_id == cred_def_id
+        assert hedera_anon_creds_rev_reg_def.tag == tag
+        assert hedera_anon_creds_rev_reg_def.value.public_keys == public_keys
+        assert hedera_anon_creds_rev_reg_def.value.max_cred_num == max_cred_num
+        assert hedera_anon_creds_rev_reg_def.value.tails_location == tails_location
+        assert hedera_anon_creds_rev_reg_def.value.tails_hash == tails_hash
+
+    def test_build_hedera_anoncreds_rev_list(self):
+        issuer_id = (
+            "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
+        )
+        rev_reg_def_id = f"{issuer_id}/anoncreds/v0/REV_REG/0.0.5281064"
+        revocation_list = [0, 1, 1, 0]
+        current_accumulator = "21118FFB"
+        timestamp = 1735318300
+
+        hedera_anoncreds_rev_list = build_hedera_anoncreds_rev_list(
+            AcapyRevList(
+                issuer_id=issuer_id,
+                rev_reg_def_id=rev_reg_def_id,
+                revocation_list=revocation_list,
+                current_accumulator=current_accumulator,
+                timestamp=timestamp,
+            )
+        )
+
+        assert hedera_anoncreds_rev_list.issuer_id == issuer_id
+        assert hedera_anoncreds_rev_list.rev_reg_def_id == rev_reg_def_id
+        assert hedera_anoncreds_rev_list.revocation_list == revocation_list
+        assert hedera_anoncreds_rev_list.current_accumulator == current_accumulator
+        assert hedera_anoncreds_rev_list.timestamp == timestamp
+
+    def test_build_acapy_get_schema_result(self):
+        resolution_metadata = {"resolution_metadata_key": "test"}
+        schema_metadata = {"schema_metadata_key": "test"}
+        name = "Example schema"
+        issuer_id = (
+            "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
+        )
+        schema_id = f"{issuer_id}/anoncreds/v0/SCHEMA/0.0.5284932"
+        attr_names = ["score"]
+        version = "1.0"
+
+        acapy_get_schema_result = build_acapy_get_schema_result(
+            HederaGetSchemaResult(
+                schema_id=schema_id,
+                schema=HederaAnonCredsSchema(
+                    issuer_id=issuer_id, name=name, attr_names=attr_names, version=version
+                ),
+                schema_metadata=schema_metadata,
+                resolution_metadata=resolution_metadata,
+            )
+        )
+
+        assert acapy_get_schema_result.schema_id == schema_id
+        assert acapy_get_schema_result.schema_metadata == schema_metadata
+        assert acapy_get_schema_result.resolution_metadata == resolution_metadata
+
+        acapy_schema = acapy_get_schema_result.schema
+
+        assert acapy_schema.issuer_id == issuer_id
+        assert acapy_schema.name == name
+        assert acapy_schema.attr_names == attr_names
+        assert acapy_schema.version == version
+
+    def test_build_acapy_get_cred_def_result(self):
+        resolution_metadata = {"resolution_metadata_key": "test"}
+        credential_definition_metadata = {"cred_def_metadata_key": "test"}
         credential_definition_id = "did:hedera:testnet:zcZMJMxUGZpxKmP35ACBWLhQyQVqtRc5T7LQhdyTDtEiP_0.0.5280965/anoncreds/v0/PUBLIC_CRED_DEF/0.0.5280968"
         issuer_id = (
             "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
         )
         schema_id = f"{issuer_id}/anoncreds/v0/SCHEMA/0.0.5284932"
-        tag = "default"
-        schema_id = "did:hedera:testnet:zcZMJMxUGZpxKmP35ACBWLhQyQVqtRc5T7LQhdyTDtEiP_0.0.5280965/anoncreds/v0/SCHEMA/0.0.5280967"
         tag = "demo-cred-def-1.0"
         n = "0954456694171"
         s = "0954456694171"
@@ -193,42 +291,123 @@ class TestTypes:
         assert (
             acapy_get_cred_def_result.credential_definition_id == credential_definition_id
         )
-        assert acapy_get_cred_def_result.credential_definition
-        assert acapy_get_cred_def_result.credential_definition.issuer_id == issuer_id
-        assert acapy_get_cred_def_result.credential_definition.schema_id == schema_id
-        assert acapy_get_cred_def_result.credential_definition.tag == tag
-        assert acapy_get_cred_def_result.credential_definition.value.primary.n == n
-        assert acapy_get_cred_def_result.credential_definition.value.primary.s == s
-        assert acapy_get_cred_def_result.credential_definition.value.primary.r == r
-        assert (
-            acapy_get_cred_def_result.credential_definition.value.primary.rctxt == rctxt
-        )
-        assert acapy_get_cred_def_result.credential_definition.value.primary.z == z
-        assert acapy_get_cred_def_result.credential_definition.value.revocation
-        assert acapy_get_cred_def_result.credential_definition.value.revocation.g == g
-        assert (
-            acapy_get_cred_def_result.credential_definition.value.revocation.g_dash
-            == g_dash
-        )
-        assert acapy_get_cred_def_result.credential_definition.value.revocation.h == h
-        assert acapy_get_cred_def_result.credential_definition.value.revocation.h0 == h0
-        assert acapy_get_cred_def_result.credential_definition.value.revocation.h1 == h1
-        assert acapy_get_cred_def_result.credential_definition.value.revocation.h2 == h2
-        assert (
-            acapy_get_cred_def_result.credential_definition.value.revocation.htilde
-            == htilde
-        )
-        assert (
-            acapy_get_cred_def_result.credential_definition.value.revocation.h_cap
-            == h_cap
-        )
-        assert acapy_get_cred_def_result.credential_definition.value.revocation.u == u
-        assert acapy_get_cred_def_result.credential_definition.value.revocation.pk == pk
-        assert acapy_get_cred_def_result.credential_definition.value.revocation.y == y
 
-    def testBuildAcapySchemaResult(self):
-        registration_metadata = {}
-        schema_metadata = {}
+        acapy_cred_def = acapy_get_cred_def_result.credential_definition
+
+        assert acapy_cred_def.issuer_id == issuer_id
+        assert acapy_cred_def.schema_id == schema_id
+        assert acapy_cred_def.tag == tag
+        assert acapy_cred_def.value.primary.n == n
+        assert acapy_cred_def.value.primary.s == s
+        assert acapy_cred_def.value.primary.r == r
+        assert acapy_cred_def.value.primary.rctxt == rctxt
+        assert acapy_cred_def.value.primary.z == z
+        assert acapy_cred_def.value.revocation
+        assert acapy_cred_def.value.revocation.g == g
+        assert acapy_cred_def.value.revocation.g_dash == g_dash
+        assert acapy_cred_def.value.revocation.h == h
+        assert acapy_cred_def.value.revocation.h0 == h0
+        assert acapy_cred_def.value.revocation.h1 == h1
+        assert acapy_cred_def.value.revocation.h2 == h2
+        assert acapy_cred_def.value.revocation.htilde == htilde
+        assert acapy_cred_def.value.revocation.h_cap == h_cap
+        assert acapy_cred_def.value.revocation.u == u
+        assert acapy_cred_def.value.revocation.pk == pk
+        assert acapy_cred_def.value.revocation.y == y
+
+    def test_build_acapy_get_rev_reg_def_result(self):
+        issuer_id = (
+            "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
+        )
+        cred_def_id = "did:hedera:testnet:zcZMJMxUGZpxKmP35ACBWLhQyQVqtRc5T7LQhdyTDtEiP_0.0.5280965/anoncreds/v0/PUBLIC_CRED_DEF/0.0.5280968"
+        rev_reg_def_id = f"{issuer_id}/anoncreds/v0/REV_REG/0.0.5281064"
+        resolution_metadata = {"resolution_metadata_key": "test"}
+        revocation_registry_definition_metadata = {"registry_metadata_key": "test"}
+        tag = "demo-cred-def-1.0"
+        public_keys = {}
+        max_cred_num = 999
+        tails_location = "./location/to/tails"
+        tails_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+        acapy_get_rev_reg_def_result = build_acapy_get_rev_reg_def_result(
+            HederaGetRevRegDefResult(
+                revocation_registry_definition_id=rev_reg_def_id,
+                resolution_metadata=resolution_metadata,
+                revocation_registry_definition_metadata=revocation_registry_definition_metadata,
+                revocation_registry_definition=HederaAnonCredsRevRegDef(
+                    issuer_id=issuer_id,
+                    cred_def_id=cred_def_id,
+                    tag=tag,
+                    value=HederaRevRegDefValue(
+                        public_keys=public_keys,
+                        max_cred_num=max_cred_num,
+                        tails_location=tails_location,
+                        tails_hash=tails_hash,
+                    ),
+                ),
+            )
+        )
+
+        assert acapy_get_rev_reg_def_result.resolution_metadata == resolution_metadata
+        assert (
+            acapy_get_rev_reg_def_result.revocation_registry_metadata
+            == revocation_registry_definition_metadata
+        )
+        assert acapy_get_rev_reg_def_result.revocation_registry_id == rev_reg_def_id
+
+        acapy_rev_reg_def = acapy_get_rev_reg_def_result.revocation_registry
+
+        assert acapy_rev_reg_def.issuer_id == issuer_id
+        assert acapy_rev_reg_def.cred_def_id == cred_def_id
+        assert acapy_rev_reg_def.tag == tag
+        assert acapy_rev_reg_def.value.public_keys == public_keys
+        assert acapy_rev_reg_def.value.max_cred_num == max_cred_num
+        assert acapy_rev_reg_def.value.tails_location == tails_location
+        assert acapy_rev_reg_def.value.tails_hash == tails_hash
+
+    def test_build_acapy_get_rev_list_result(self):
+        issuer_id = (
+            "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
+        )
+        rev_reg_def_id = f"{issuer_id}/anoncreds/v0/REV_REG/0.0.5281064"
+        revocation_list = [0, 1, 1, 0]
+        current_accumulator = "21118FFB"
+        timestamp = 1735318300
+        resolution_metadata = {"resolution_metadata_key": "test"}
+        revocation_registry_metadata = {"registry_metadata_key": "test"}
+
+        acapy_get_rev_list_result = build_acapy_get_rev_list_result(
+            HederaGetRevListResult(
+                revocation_registry_id=rev_reg_def_id,
+                revocation_list=HederaAnonCredsRevList(
+                    issuer_id=issuer_id,
+                    rev_reg_def_id=rev_reg_def_id,
+                    revocation_list=revocation_list,
+                    current_accumulator=current_accumulator,
+                    timestamp=timestamp,
+                ),
+                resolution_metadata=resolution_metadata,
+                revocation_list_metadata=revocation_registry_metadata,
+            )
+        )
+
+        assert acapy_get_rev_list_result.resolution_metadata == resolution_metadata
+        assert (
+            acapy_get_rev_list_result.revocation_registry_metadata
+            == revocation_registry_metadata
+        )
+
+        acapy_rev_list = acapy_get_rev_list_result.revocation_list
+
+        assert acapy_rev_list.issuer_id == issuer_id
+        assert acapy_rev_list.rev_reg_def_id == rev_reg_def_id
+        assert acapy_rev_list.revocation_list == revocation_list
+        assert acapy_rev_list.current_accumulator == current_accumulator
+        assert acapy_rev_list.timestamp == timestamp
+
+    def test_build_acapy_schema_result(self):
+        registration_metadata = {"registration_metadata_key": "test"}
+        schema_metadata = {"schema_metadata_key": "test"}
         name = "Example schema"
         issuer_id = (
             "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
@@ -239,7 +418,7 @@ class TestTypes:
         state = "finished"
         reason = "reason"
 
-        acapy_schema_result = buildAcapySchemaResult(
+        acapy_schema_result = build_acapy_schema_result(
             HederaSchemaResult(
                 registration_metadata=registration_metadata,
                 schema_metadata=schema_metadata,
@@ -259,17 +438,22 @@ class TestTypes:
 
         assert acapy_schema_result.registration_metadata == registration_metadata
         assert acapy_schema_result.schema_metadata == schema_metadata
-        assert acapy_schema_result.job_id is None
-        assert acapy_schema_result.schema_state.state == state
-        assert acapy_schema_result.schema_state.schema_id == schema_id
-        assert acapy_schema_result.schema_state.schema.issuer_id == issuer_id
-        assert acapy_schema_result.schema_state.schema.attr_names == attr_names
-        assert acapy_schema_result.schema_state.schema.name == name
-        assert acapy_schema_result.schema_state.schema.version == version
 
-    def testBuildAcapyCredDefResult(self):
-        registration_metadata = {}
-        credential_definition_metadata = {}
+        acapy_schema_state = acapy_schema_result.schema_state
+
+        assert acapy_schema_state.state == state
+        assert acapy_schema_state.schema_id == schema_id
+
+        acapy_schema = acapy_schema_state.schema
+
+        assert acapy_schema.issuer_id == issuer_id
+        assert acapy_schema.attr_names == attr_names
+        assert acapy_schema.name == name
+        assert acapy_schema.version == version
+
+    def test_build_acapy_cred_def_result(self):
+        registration_metadata = {"registration_metadata_key": "test"}
+        credential_definition_metadata = {"cred_def_metadata_key": "test"}
         credential_definition_id = "did:hedera:testnet:zcZMJMxUGZpxKmP35ACBWLhQyQVqtRc5T7LQhdyTDtEiP_0.0.5280965/anoncreds/v0/PUBLIC_CRED_DEF/0.0.5280968"
         issuer_id = (
             "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
@@ -295,7 +479,7 @@ class TestTypes:
         state = "finished"
         reason = "reason"
 
-        acapy_cred_def_result = buildAcapyCredDefResult(
+        acapy_cred_def_result = build_acapy_cred_def_result(
             HederaCredDefResult(
                 registration_metadata=registration_metadata,
                 credential_definition_metadata=credential_definition_metadata,
@@ -335,88 +519,99 @@ class TestTypes:
             acapy_cred_def_result.credential_definition_metadata
             == credential_definition_metadata
         )
+
         assert acapy_cred_def_result.credential_definition_state.state == state
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.issuer_id
-            == issuer_id
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.schema_id
-            == schema_id
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.tag
-            == tag
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.primary.n
-            == n
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.primary.s
-            == s
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.primary.r
-            == r
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.primary.rctxt
-            == rctxt
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.primary.z
-            == z
-        )
-        assert acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation.g
-            == g
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation.g_dash
-            == g_dash
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation.h
-            == h
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation.h0
-            == h0
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation.h1
-            == h1
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation.h2
-            == h2
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation.htilde
-            == htilde
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation.h_cap
-            == h_cap
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation.u
-            == u
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation.pk
-            == pk
-        )
-        assert (
-            acapy_cred_def_result.credential_definition_state.credential_definition.value.revocation.y
-            == y
+
+        acapy_cred_def = (
+            acapy_cred_def_result.credential_definition_state.credential_definition
         )
 
-    def testBuildAcapyRevListResult(self):
-        registration_metadata = {}
-        revocation_list_metadata = {}
+        assert acapy_cred_def.issuer_id == issuer_id
+        assert acapy_cred_def.schema_id == schema_id
+
+        assert acapy_cred_def.tag == tag
+        assert acapy_cred_def.value.primary.n == n
+        assert acapy_cred_def.value.primary.s == s
+        assert acapy_cred_def.value.primary.r == r
+        assert acapy_cred_def.value.primary.rctxt == rctxt
+        assert acapy_cred_def.value.primary.z == z
+        assert acapy_cred_def.value.revocation
+        assert acapy_cred_def.value.revocation.g == g
+        assert acapy_cred_def.value.revocation.g_dash == g_dash
+        assert acapy_cred_def.value.revocation.h == h
+        assert acapy_cred_def.value.revocation.h0 == h0
+        assert acapy_cred_def.value.revocation.h1 == h1
+        assert acapy_cred_def.value.revocation.h2 == h2
+        assert acapy_cred_def.value.revocation.htilde == htilde
+        assert acapy_cred_def.value.revocation.h_cap == h_cap
+        assert acapy_cred_def.value.revocation.u == u
+        assert acapy_cred_def.value.revocation.pk == pk
+        assert acapy_cred_def.value.revocation.y == y
+
+    def test_build_acapy_rev_reg_def_result(self):
+        registration_metadata = {"registration_metadata_key": "test"}
+        revocation_registry_definition_metadata = {"rev_reg_def_metadata_key": "test"}
+        state = "finished"
+        issuer_id = (
+            "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
+        )
+        rev_reg_def_id = f"{issuer_id}/anoncreds/v0/REV_REG/0.0.5281064"
+        cred_def_id = "did:hedera:testnet:zcZMJMxUGZpxKmP35ACBWLhQyQVqtRc5T7LQhdyTDtEiP_0.0.5280965/anoncreds/v0/PUBLIC_CRED_DEF/0.0.5280968"
+        tag = "demo-cred-def-1.0"
+        public_keys = {}
+        max_cred_num = 999
+        tails_location = "./location/to/tails"
+        tails_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+        acapy_rev_reg_def_result = build_acapy_rev_reg_def_result(
+            HederaRevRegDefResult(
+                revocation_registry_definition_state=HederaRevRegDefState(
+                    state=state,
+                    revocation_registry_definition_id=rev_reg_def_id,
+                    revocation_registry_definition=HederaAnonCredsRevRegDef(
+                        issuer_id=issuer_id,
+                        cred_def_id=cred_def_id,
+                        value=HederaRevRegDefValue(
+                            public_keys=public_keys,
+                            max_cred_num=max_cred_num,
+                            tails_location=tails_location,
+                            tails_hash=tails_hash,
+                        ),
+                        tag=tag,
+                    ),
+                ),
+                revocation_registry_definition_metadata=revocation_registry_definition_metadata,
+                registration_metadata=registration_metadata,
+            )
+        )
+
+        assert acapy_rev_reg_def_result.registration_metadata == registration_metadata
+        assert (
+            acapy_rev_reg_def_result.revocation_registry_definition_metadata
+            == revocation_registry_definition_metadata
+        )
+
+        acapy_rev_reg_def_state = (
+            acapy_rev_reg_def_result.revocation_registry_definition_state
+        )
+
+        assert acapy_rev_reg_def_state.state == state
+        assert acapy_rev_reg_def_state.revocation_registry_definition_id == rev_reg_def_id
+
+        acapy_rev_reg_def = acapy_rev_reg_def_state.revocation_registry_definition
+
+        assert acapy_rev_reg_def.issuer_id == issuer_id
+        assert acapy_rev_reg_def.cred_def_id == cred_def_id
+        assert acapy_rev_reg_def.type == "CL_ACCUM"
+
+        assert acapy_rev_reg_def.value.public_keys == public_keys
+        assert acapy_rev_reg_def.value.max_cred_num == max_cred_num
+        assert acapy_rev_reg_def.value.tails_location == tails_location
+        assert acapy_rev_reg_def.value.tails_hash == tails_hash
+
+    def test_build_acapy_rev_list_result(self):
+        registration_metadata = {"registration_metadata_key": "test"}
+        revocation_list_metadata = {"rev_list_metadata_key": "test"}
         issuer_id = (
             "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
         )
@@ -427,8 +622,8 @@ class TestTypes:
         current_accumulator = "21118FFB"
         timestamp = 1735318300
 
-        acapy_rev_list_result = buildAcapyRevListResult(
-            HederaRegisterRevListResult(
+        acapy_rev_list_result = build_acapy_rev_list_result(
+            HederaRevListResult(
                 registration_metadata=registration_metadata,
                 revocation_list_metadata=revocation_list_metadata,
                 revocation_list_state=HederaRevListState(
@@ -448,125 +643,11 @@ class TestTypes:
         assert acapy_rev_list_result.registration_metadata == registration_metadata
         assert acapy_rev_list_result.revocation_list_metadata == revocation_list_metadata
         assert acapy_rev_list_result.revocation_list_state.state == state
-        assert (
-            acapy_rev_list_result.revocation_list_state.revocation_list.issuer_id
-            == issuer_id
-        )
-        assert (
-            acapy_rev_list_result.revocation_list_state.revocation_list.rev_reg_def_id
-            == rev_reg_def_id
-        )
-        assert (
-            acapy_rev_list_result.revocation_list_state.revocation_list.revocation_list
-            == revocation_list
-        )
-        assert (
-            acapy_rev_list_result.revocation_list_state.revocation_list.current_accumulator
-            == current_accumulator
-        )
-        assert (
-            acapy_rev_list_result.revocation_list_state.revocation_list.timestamp
-            == timestamp
-        )
 
-    def testBuildAcapyRevRegDefResult(self):
-        issuer_id = (
-            "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
-        )
-        cred_def_id = "did:hedera:testnet:zcZMJMxUGZpxKmP35ACBWLhQyQVqtRc5T7LQhdyTDtEiP_0.0.5280965/anoncreds/v0/PUBLIC_CRED_DEF/0.0.5280968"
-        rev_reg_def_id = f"{issuer_id}/anoncreds/v0/REV_REG/0.0.5281064"
-        resolution_metadata = {}
-        revocation_registry_definition_metadata = {}
-        tag = "demo-cred-def-1.0"
-        public_keys = {}
-        max_cred_num = 999
-        tails_location = "./location/to/tails"
-        tails_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        acapy_rev_list = acapy_rev_list_result.revocation_list_state.revocation_list
 
-        acapy_get_rev_reg_def_result = buildAcapyGetRevRegDefResult(
-            HederaGetRevRegDefResult(
-                revocation_registry_definition_id=rev_reg_def_id,
-                resolution_metadata=resolution_metadata,
-                revocation_registry_definition_metadata=revocation_registry_definition_metadata,
-                revocation_registry_definition=HederaAnonCredsRevRegDef(
-                    issuer_id=issuer_id,
-                    cred_def_id=cred_def_id,
-                    tag=tag,
-                    value=HederaRevRegDefValue(
-                        public_keys=public_keys,
-                        max_cred_num=max_cred_num,
-                        tails_location=tails_location,
-                        tails_hash=tails_hash,
-                    ),
-                ),
-            )
-        )
-
-        assert acapy_get_rev_reg_def_result.revocation_registry_id == rev_reg_def_id
-        assert acapy_get_rev_reg_def_result.resolution_metadata == resolution_metadata
-        assert (
-            acapy_get_rev_reg_def_result.revocation_registry_metadata
-            == revocation_registry_definition_metadata
-        )
-        assert acapy_get_rev_reg_def_result.revocation_registry.issuer_id == issuer_id
-        assert acapy_get_rev_reg_def_result.revocation_registry.cred_def_id == cred_def_id
-        assert acapy_get_rev_reg_def_result.revocation_registry.tag == tag
-        assert (
-            acapy_get_rev_reg_def_result.revocation_registry.value.public_keys
-            == public_keys
-        )
-        assert (
-            acapy_get_rev_reg_def_result.revocation_registry.value.max_cred_num
-            == max_cred_num
-        )
-        assert (
-            acapy_get_rev_reg_def_result.revocation_registry.value.tails_location
-            == tails_location
-        )
-        assert (
-            acapy_get_rev_reg_def_result.revocation_registry.value.tails_hash
-            == tails_hash
-        )
-
-    def testBuildHederaAnonCredsRevRegDef(self):
-        issuer_id = (
-            "did:hedera:testnet:zFwZUYPrhi333pC2anAnSkctXgZzLfeR8DXURo2N4xV1C_0.0.5284925"
-        )
-        type_ = "CL_ACCUM"
-        cred_def_id = "did:hedera:testnet:zcZMJMxUGZpxKmP35ACBWLhQyQVqtRc5T7LQhdyTDtEiP_0.0.5280965/anoncreds/v0/PUBLIC_CRED_DEF/0.0.5280968"
-        tag = "demo-cred-def-1.0"
-        public_keys = {}
-        max_cred_num = 999
-        tails_location = "./location/to/tails"
-        tails_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-
-        hedera_anon_creds_rev_reg_def = buildHederaAnonCredsRevRegDef(
-            AcapyRevRegDef(
-                issuer_id=issuer_id,
-                type=type_,
-                cred_def_id=cred_def_id,
-                tag=tag,
-                value=AcapyRevRegDefValue(
-                    public_keys=public_keys,
-                    max_cred_num=max_cred_num,
-                    tails_location=tails_location,
-                    tails_hash=tails_hash,
-                ),
-            )
-        )
-
-        assert hedera_anon_creds_rev_reg_def.issuer_id == issuer_id
-        assert hedera_anon_creds_rev_reg_def.cred_def_id == cred_def_id
-        assert hedera_anon_creds_rev_reg_def.tag == tag
-        assert hedera_anon_creds_rev_reg_def.value.public_keys == public_keys
-        assert hedera_anon_creds_rev_reg_def.value.max_cred_num == max_cred_num
-        assert hedera_anon_creds_rev_reg_def.value.tails_location == tails_location
-        assert hedera_anon_creds_rev_reg_def.value.tails_hash == tails_hash
-
-    # TODO
-    # def testBuildHederaAnonCredsRevList(self):
-    #     pass
-
-    # TODO
-    # def testBuildAcapyGetRevListResult(self):
-    #     pass
+        assert acapy_rev_list.issuer_id == issuer_id
+        assert acapy_rev_list.rev_reg_def_id == rev_reg_def_id
+        assert acapy_rev_list.revocation_list == revocation_list
+        assert acapy_rev_list.current_accumulator == current_accumulator
+        assert acapy_rev_list.timestamp == timestamp

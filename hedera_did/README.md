@@ -11,7 +11,7 @@ Under the hood, the plugin consists from following core components:
   - HederaDIDRegistrar
 - HederaAnonCredsRegistry (implementation of both [BaseAnonCredsResolver](https://github.com/openwallet-foundation/acapy/blob/main/acapy_agent/anoncreds/base.py#L109) and [BaseAnonCredsRegistrar](https://github.com/openwallet-foundation/acapy/blob/main/acapy_agent/anoncreds/base.py#L141) interfaces)
 
-### API updates (TODO - double-check endpoints)
+### API updates
 
 Hedera plugin aims to add Hedera DID support to existing ACA-Py flows, without bringing completely new functionality or API.
 
@@ -36,7 +36,7 @@ Please see corresponding [demo folder and README](./demo)
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.12+
 - JDK 21 - required for Hedera Python SDK which is a wrapper around Java SDK
   - Needs to be installed in a Docker container in order to run the plugin
   - The Temurin builds of [Eclipse Adoptium](https://adoptium.net/) are strongly recommended
@@ -52,6 +52,11 @@ Please see corresponding [demo folder and README](./demo)
 - The plugin works only with `askar-anoncreds` wallet type
 
 An example configuration for the plugin can be found in [plugins-config.yml](./docker/plugins-config.yml)
+
+You can also use environment variables to configure the plugin:
+- `HEDERA_NETWORK`
+- `HEDERA_OPERATOR_ID`
+- `HEDERA_OPERATOR_KEY`
 
 ### Deployment
 
@@ -82,7 +87,7 @@ ENTRYPOINT ["aca-py"]
 
 More complete example (including complete dependencies setup) can be found [in docker folder](./docker/Dockerfile) 
 
-### Create a DID (TODO - make request description nicer)
+### Create a DID
 
 Process of creating Hedera DID is different comparing to DID Methods that are natively supported by ACA-Py, despite having the same API structure.
 
@@ -92,6 +97,26 @@ The endpoint accepts following set of parameters:
 ```
 key_type - Type of DID owner key to create (only a Ed25519 is supported for now)
 seed - DID owner key seed
+```
+
+#### Example request
+```
+curl -X 'POST' \
+  '{acapy_url}/hedera/did/register' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "key_type": "Ed25519"
+}'
+```
+
+#### Example response
+```json
+{
+  "did": "did:hedera:testnet:zFQ5MrvqeoBzvCJJFUopRH7jfcAzCdD5ntBc1KnrAZ8F9_0.0.5466776",
+  "verkey": "FQ5MrvqeoBzvCJJFUopRH7jfcAzCdD5ntBc1KnrAZ8F9",
+  "key_type": "ed25519"
+}
 ```
 
 ## Development

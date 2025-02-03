@@ -40,7 +40,6 @@ class TestHederaDid:
             ]
         }
 
-
     def test_hedera_did_resolve(self, holder, Something):
         method = "hedera:testnet"
         ver_key = "zHNJ37tiLbGxD7XPvnTkaZCAV3PCe5P4HJFGMGUkVVZAJ"

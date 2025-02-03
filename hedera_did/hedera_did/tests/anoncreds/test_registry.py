@@ -41,14 +41,14 @@ from did_sdk_py.anoncreds.types import (
 from hedera_did.anoncreds import HederaAnonCredsRegistry
 from hedera_did.anoncreds.registry import _validate_resolution_result
 from hedera_did.anoncreds.types import (
-    buildAcapyCredDefResult,
-    buildAcapyGetCredDefResult,
-    buildAcapyGetRevListResult,
-    buildAcapyGetRevRegDefResult,
-    buildAcapyGetSchemaResult,
-    buildAcapyRevListResult,
-    buildAcapyRevRegDefResult,
-    buildAcapySchemaResult,
+    build_acapy_cred_def_result,
+    build_acapy_get_cred_def_result,
+    build_acapy_get_rev_list_result,
+    build_acapy_get_rev_reg_def_result,
+    build_acapy_get_schema_result,
+    build_acapy_rev_list_result,
+    build_acapy_rev_reg_def_result,
+    build_acapy_schema_result,
 )
 
 
@@ -204,7 +204,9 @@ class TestAnonCredsRegistry:
 
         result = await registry.get_schema(profile, MOCK_SCHEMA_ID)
 
-        assert result.serialize() == buildAcapyGetSchemaResult(hedera_result).serialize()
+        assert (
+            result.serialize() == build_acapy_get_schema_result(hedera_result).serialize()
+        )
 
     @patch("hedera_did.anoncreds.registry.SdkHederaAnonCredsRegistry")
     async def test_get_schema_info_by_id(
@@ -246,7 +248,10 @@ class TestAnonCredsRegistry:
 
         result = await registry.get_credential_definition(profile, MOCK_CRED_DEF_ID)
 
-        assert result.serialize() == buildAcapyGetCredDefResult(hedera_result).serialize()
+        assert (
+            result.serialize()
+            == build_acapy_get_cred_def_result(hedera_result).serialize()
+        )
 
     @patch("hedera_did.anoncreds.registry.SdkHederaAnonCredsRegistry")
     async def test_get_revocation_registry_definition(
@@ -269,7 +274,8 @@ class TestAnonCredsRegistry:
         )
 
         assert (
-            result.serialize() == buildAcapyGetRevRegDefResult(hedera_result).serialize()
+            result.serialize()
+            == build_acapy_get_rev_reg_def_result(hedera_result).serialize()
         )
 
     @patch("hedera_did.anoncreds.registry.SdkHederaAnonCredsRegistry")
@@ -292,7 +298,10 @@ class TestAnonCredsRegistry:
             profile, MOCK_REV_REG_DEF_ID, 0, MOCK_REV_LIST.timestamp
         )
 
-        assert result.serialize() == buildAcapyGetRevListResult(hedera_result).serialize()
+        assert (
+            result.serialize()
+            == build_acapy_get_rev_list_result(hedera_result).serialize()
+        )
 
     @patch("hedera_did.anoncreds.registry.SdkHederaAnonCredsRegistry")
     @patch("hedera_did.anoncreds.registry.get_private_key_der_from_did", new=AsyncMock())
@@ -314,7 +323,7 @@ class TestAnonCredsRegistry:
 
         result = await registry.register_schema(profile, MOCK_SCHEMA)
 
-        assert result.serialize() == buildAcapySchemaResult(hedera_result).serialize()
+        assert result.serialize() == build_acapy_schema_result(hedera_result).serialize()
 
     @patch("hedera_did.anoncreds.registry.SdkHederaAnonCredsRegistry")
     @patch("hedera_did.anoncreds.registry.get_private_key_der_from_did", new=AsyncMock())
@@ -334,7 +343,7 @@ class TestAnonCredsRegistry:
             return_value=hedera_result
         )
 
-        schema_result = buildAcapyGetSchemaResult(
+        schema_result = build_acapy_get_schema_result(
             HederaGetSchemaResult(
                 schema_id=MOCK_SCHEMA_ID,
                 resolution_metadata={},
@@ -361,7 +370,9 @@ class TestAnonCredsRegistry:
             profile, schema_result, cred_def
         )
 
-        assert result.serialize() == buildAcapyCredDefResult(hedera_result).serialize()
+        assert (
+            result.serialize() == build_acapy_cred_def_result(hedera_result).serialize()
+        )
 
     @patch("hedera_did.anoncreds.registry.SdkHederaAnonCredsRegistry")
     @patch("hedera_did.anoncreds.registry.get_private_key_der_from_did", new=AsyncMock())
@@ -394,7 +405,10 @@ class TestAnonCredsRegistry:
             profile, rev_reg_def
         )
 
-        assert result.serialize() == buildAcapyRevRegDefResult(hedera_result).serialize()
+        assert (
+            result.serialize()
+            == build_acapy_rev_reg_def_result(hedera_result).serialize()
+        )
 
     @patch("hedera_did.anoncreds.registry.SdkHederaAnonCredsRegistry")
     @patch("hedera_did.anoncreds.registry.get_private_key_der_from_did", new=AsyncMock())
@@ -430,7 +444,9 @@ class TestAnonCredsRegistry:
         )
         result = await registry.register_revocation_list(profile, rev_reg_def, rev_list)
 
-        assert result.serialize() == buildAcapyRevListResult(hedera_result).serialize()
+        assert (
+            result.serialize() == build_acapy_rev_list_result(hedera_result).serialize()
+        )
 
     @patch("hedera_did.anoncreds.registry.SdkHederaAnonCredsRegistry")
     @patch("hedera_did.anoncreds.registry.get_private_key_der_from_did", new=AsyncMock())
@@ -476,4 +492,6 @@ class TestAnonCredsRegistry:
             profile, rev_reg_def, prev_rev_list, rev_list, [2]
         )
 
-        assert result.serialize() == buildAcapyRevListResult(hedera_result).serialize()
+        assert (
+            result.serialize() == build_acapy_rev_list_result(hedera_result).serialize()
+        )
