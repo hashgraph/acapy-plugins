@@ -1,16 +1,16 @@
 [tool.poetry]
 name = "hedera_did"
 version = "0.1.0"
-description = " (Supported acapy-agent version: 1.1.1) "
+description = " (Supported acapy-agent version: 1.2.1) "
 authors = []
 
 [tool.poetry.dependencies]
 python = "^3.12"
-did-sdk-py = { git = "https://github.com/hashgraph/did-sdk-py", branch="main" }
+did-sdk-py = { git = "https://github.com/DSRCorporation/hedera-did-sdk-py", branch="main" }
 
 # Define ACA-Py as an optional/extra dependancy so it can be
 # explicitly installed with the plugin if desired.
-acapy-agent = { version = "~1.2.0rc0", optional = true }
+acapy-agent = { version = "~1.2.1", optional = true }
 
 [tool.poetry.extras]
 aca-py = ["acapy-agent"]
@@ -56,6 +56,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["F841", "D", "E501"]
+"**/{demo}/*" = ["F841", "D", "E501"]
 
 [tool.pytest.ini_options]
 testpaths = "hedera_did"

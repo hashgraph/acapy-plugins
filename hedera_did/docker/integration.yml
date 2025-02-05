@@ -33,5 +33,3 @@ multitenant-admin: true
 jwt-secret: test
 
 tails-server-base-url: http://tails:6543
-
-webhook-url: http://dummy-webhook-server:8080

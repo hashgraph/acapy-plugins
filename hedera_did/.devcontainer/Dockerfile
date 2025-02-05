@@ -32,9 +32,6 @@ ENV PATH=$JAVA_HOME/bin:$PATH
 
 COPY pyproject.toml ./
 
-RUN poetry config virtualenvs.create false \
-    && poetry config repositories.did-sdk-py https://github.com/hashgraph/did-sdk-py \
-    && poetry config http-basic.did-sdk-py x-token-auth $GITHUB_TOKEN
-
+RUN poetry config virtualenvs.create false
 RUN poetry install --no-root --no-interaction --with integration --extras "aca-py" \
     && rm -rf /root/.cache/pypoetry

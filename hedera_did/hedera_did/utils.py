@@ -8,10 +8,8 @@ from acapy_agent.wallet.base import BaseWallet
 from did_sdk_py.did.utils import parse_identifier
 from hedera import PrivateKey
 
-async def get_private_key_der_from_did(
-        wallet: BaseWallet,
-        did: str
-        ):
+
+async def get_private_key_der_from_did(wallet: BaseWallet, did: str):
     """Retrieve the private key DER from a DID value."""
     parsed_identifier = parse_identifier(did)
     pubkey_base58 = parsed_identifier.public_key_base58
@@ -31,11 +29,10 @@ async def get_private_key_der_from_did(
 
     return private_key_der
 
+
 def inject_or_fail(
-        session: ProfileSession,
-        base_class: Type[InjectType],
-        exception
-        ) -> InjectType:
+    session: ProfileSession, base_class: Type[InjectType], exception
+) -> InjectType:
     """Inject class from context or immediately fail if not possible."""
     instance = session.inject_or(base_class)
 

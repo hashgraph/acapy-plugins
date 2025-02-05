@@ -15,9 +15,7 @@ RUN curl -sSL https://install.python-poetry.org | python -
 
 ENV PATH="/opt/poetry/bin:$PATH"
 
-RUN poetry config virtualenvs.in-project true \
-    && poetry config repositories.did-sdk-py https://github.com/hashgraph/did-sdk-py \
-    && poetry config http-basic.did-sdk-py x-token-auth $GITHUB_TOKEN
+RUN poetry config virtualenvs.in-project true
 
 # Setup project
 RUN mkdir hedera_did && touch hedera_did/__init__.py
