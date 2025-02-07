@@ -1,6 +1,6 @@
 """Shared objects."""
 
-from hedera_sdk_python import Client, Network, AccountId, PrivateKey
+from hiero_sdk_python import Client, Network, AccountId, PrivateKey
 
 instances_map = {}
 

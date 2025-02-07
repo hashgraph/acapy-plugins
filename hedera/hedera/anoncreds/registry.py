@@ -22,7 +22,7 @@ from acapy_agent.anoncreds.events import RevListFinishedEvent
 from acapy_agent.anoncreds.models.schema_info import AnoncredsSchemaInfo
 from acapy_agent.core.event_bus import EventBus
 from acapy_agent.wallet.base import BaseWallet
-from hedera_sdk_python import Client
+from hiero_sdk_python import Client
 from did_sdk_py.anoncreds.hedera_anoncreds_registry import (
     HederaAnonCredsRegistry as SdkHederaAnonCredsRegistry,
 )

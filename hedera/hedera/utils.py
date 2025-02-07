@@ -6,7 +6,7 @@ from acapy_agent.config.injector import InjectType
 from acapy_agent.core.profile import ProfileSession
 from acapy_agent.wallet.base import BaseWallet
 from did_sdk_py.did.utils import parse_identifier
-from hedera_sdk_python import PrivateKey
+from hiero_sdk_python import PrivateKey
 
 
 async def get_encoded_private_key_for_did(wallet: BaseWallet, did: str) -> str:
