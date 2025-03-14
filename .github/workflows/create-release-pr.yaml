@@ -38,11 +38,11 @@ jobs:
       #----------------------------------------------
       #       Check out repo
       #----------------------------------------------
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       #----------------------------------------------
       #       Setup python
       #----------------------------------------------
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: '3.12'
       #----------------------------------------------
@@ -223,7 +223,7 @@ jobs:
       # ----------------------------------------------
       - name: Initialize Docker Compose
         if: ${{ steps.upgrade_available.outputs.available == 'true' && github.event.inputs.re_release != 'true'}} 
-        uses: isbang/compose-action@v1.5.1
+        uses: isbang/compose-action@178aeba5c9dbeed89ffffbb3e6548ec08e9839cf # v1.5.1
       # ----------------------------------------------
       #       Collect plugins that fail integration tests
       # ----------------------------------------------
@@ -407,7 +407,7 @@ jobs:
       #----------------------------------------------
       - name: Create PR
         if: ${{ steps.upgrade_available.outputs.available == 'true' && github.event.inputs.re_release != 'true'}} 
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           author: Release Bot <release-bot@users.noreply.github.com>
           committer: Release Bot <release-bot@users.noreply.github.com>
