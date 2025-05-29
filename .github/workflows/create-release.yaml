@@ -5,6 +5,9 @@ on:
     branches: ['main']
     paths: ['*/poetry.lock']
 
+permissions:
+  contents: read
+
 jobs:
   checks:
     name: "Create Release"
@@ -21,6 +24,11 @@ jobs:
       run:
         working-directory: .
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
@@ -146,7 +154,7 @@ jobs:
       # ----------------------------------------------
       - name: Create Release
         if: steps.should_create_release.outputs.should_create_release == 'true'  
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
+        uses: step-security/action-gh-release@868edcd064bf35267c4b218913c3d36d547086b4 # v2.2.2
         with:
           token: ${{ secrets.BOT_PR_PAT }}
           name: ${{ steps.prepare_release.outputs.tag }}
