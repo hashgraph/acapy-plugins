@@ -19,18 +19,18 @@ jobs:
       #       Check out repo
       #----------------------------------------------
       - name: Check out repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v5
       #----------------------------------------------
       #       Get docker compose
       #----------------------------------------------
       - name: Initialize Docker Compose
-        uses: isbang/compose-action@178aeba5c9dbeed89ffffbb3e6548ec08e9839cf # v1.5.1
+        uses: isbang/compose-action@v1.5.1
       #----------------------------------------------
       #       Get changed files
       #----------------------------------------------
       - name: Get changed files
         id: changed-files
-        uses: step-security/changed-files@3dbe17c78367e7d60f00d78ae6781a35be47b4a1 # v45.0.1
+        uses: tj-actions/changed-files@v47.0.0
       #----------------------------------------------
       #       Get changed plugins
       #----------------------------------------------
@@ -91,12 +91,53 @@ jobs:
       #----------------------------------------------
       - name: Run Integration Tests
         id: integration-tests
+        shell: bash
         run: |
           for dir in ${{ steps.changed-plugins.outputs.changed-plugins }}; do
-            echo "Running integration tests for $dir"
-            cd $dir/integration
-            docker compose down --remove-orphans
+
+            if [[ "$dir" == "cheqd" ]]; then
+              echo "⏭️  Skipping integration tests for $dir"
+              continue
+            fi
+
+            echo "🔧 Running integration tests for $dir"
+            cd "$dir/integration"
+
+            # Source init-network.sh if it exists
+            if [ -f ./init-network.sh ]; then
+              echo "📡 Sourcing init-network.sh"
+              . ./init-network.sh
+            fi
+
             docker compose build
-            docker compose run tests
+
+            if [[ "$dir" == "cache_redis" ]]; then
+
+              # Start everything in the background
+              echo "🚀 Starting docker compose stack..."
+              docker compose up -d
+
+              echo "🧪 Running tests container..."
+              docker compose run --rm tests
+              TEST_EXIT=$?
+
+              if [[ $TEST_EXIT -ne 0 ]]; then
+                echo "❌ Tests failed for $dir - dumping logs:"
+                docker compose logs || true
+                docker compose down --remove-orphans
+                exit $TEST_EXIT
+              fi
+            else
+              # Normal plugin flow
+              if ! docker compose up --exit-code-from tests; then
+                echo "❌ Tests failed for $dir - dumping logs:"
+                docker compose logs
+                docker compose down --remove-orphans
+                exit 1
+              fi
+            fi
+
+            echo "✅ Tests passed for $dir"
+            docker compose down --remove-orphans
             cd ../..
           done

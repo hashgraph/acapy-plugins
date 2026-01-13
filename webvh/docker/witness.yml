@@ -1,0 +1,35 @@
+label: webvh-witness
+
+auto-provision: true
+
+admin: [0.0.0.0, 8020]
+admin-insecure-mode: true
+
+inbound-transport:
+  - [ws, 0.0.0.0, 8021]
+  - [http, 0.0.0.0, 8022]
+outbound-transport: [ws, http]
+endpoint:
+  - http://localhost:8021
+
+plugin:
+  - webvh
+
+no-ledger: true
+
+# Wallet
+wallet-type: askar-anoncreds
+wallet-name: witness-wallet
+wallet-key: insecure
+wallet-allow-insecure-seed: true # Don't do this in production
+
+log-level: info
+
+auto-accept-invites: true
+auto-accept-requests: true
+auto-respond-messages: true
+
+
+# Plugin
+plugin-config-value:
+   - webvh.server_url=https://sandbox.bcvh.vonx.io

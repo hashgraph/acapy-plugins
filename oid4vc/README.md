@@ -34,16 +34,17 @@ DOCKER_DEFAULT_PLATFORM=linux/amd64 docker build -f ../docker/Dockerfile --tag o
 
 ### Demo Flow
 
-Navigate to `http://localhost:3002` in your browser. You will start at the landing page. The sidebar has buttons to take you to the issuance and presentation pages. 
+Navigate to `http://localhost:3002` in your browser. You will start at the landing page. The sidebar has buttons to take you to the issuance and presentation pages.
 
 1. Issue Credential
 
    - This page generates a simple `UniversityCredential` for issuance
-       - The demo obscures and automates the necessary `credential-supported/create` call, which is what defines the type and values of a credential that can be issued
+
+     - The demo obscures and automates the necessary `credential-supported/create` call, which is what defines the type and values of a credential that can be issued
 
    - Preparing a credential offer is simple:
-      - Enter your name and email, or use the test value provided, and hit `Register`
-      - Once you hit `Register`, you'll be automatically taken to the Credential Offer Page
+     - Enter your name and email, or use the test value provided, and hit `Register`
+     - Once you hit `Register`, you'll be automatically taken to the Credential Offer Page
 
 2. Credential Offer Page
    - Presents a credential offer in the form of a QR code.
@@ -62,13 +63,60 @@ Now you have a `UniversityCredential` in your Sphereon Wallet. To demonstrate th
 
 As mentioned, the demo automatically takes care of a lot of the setup calls necessary to prepare credential definitions, presentation requests, and so forth. You can see what calls are being made, and with what values, both in the container logs and on the page.
 
+
+### Integrating the Status List Plugin
+
+Documentation for the [Status List Plugin] (https://github.com/openwallet-foundation/acapy-plugins/blob/main/status_list/README.md)
+
+1. Configuring the plugin:
+
+     Command Line: *--plugin status_list.v1_0*
+
+     Example Configuration:
+```
+     OID4VCI_STATUS_HANDLER: status_list.v1_0.status_handler
+     STATUS_LIST_SIZE: 131072
+     STATUS_LIST_SHARD_SIZE: 1024
+     STATUS_LIST_PUBLIC_URI: https://localhost:8082/tenant/{tenant_id}/status/{list_number}
+     STATUS_LIST_FILE_PATH: /tmp/bitstring/{tenant_id}/{list_number}
+```
+3. Binding a status list to a *supported_cred_id*:
+
+     Once bound all credentials issued with the given supported_cred_id will include a status list entry - either w3c or ietf
+
+     API Call - *POST .../status-list/defs*
+
+     Example JSON Body (list_type can be either "w3c" or "ietf"):
+```
+      {
+        "issuer_did": "did....",
+        "list_type": "w3c",
+        "list_size": 131072,
+        "shard_size": 1024,
+        "status_message": [
+          {
+            "status": "0x00",
+            "message": "active"
+          },
+          {
+            "status": "0x01",
+            "message": "revoked"
+          },
+        ],
+        "status_purpose": "message",
+        "status_size": 1,
+        "supported_cred_id": "string",
+        "verification_method": "did...."
+      }
+```
+
 ### Note
 
 In a production environment, the described processes would be more dynamic and involve additional security measures. This demo provides a streamlined representation for clarity and ease of understanding.
 
 ## Architecture
 
-![oid4vci-component](https://raw.githubusercontent.com/hyperledger/aries-acapy-plugins/main/oid4vci/docs/images/oid4vci-component.png)
+![oid4vci-component](https://raw.githubusercontent.com/openwallet-foundation/acapy-plugins/main/oid4vc/docs/images/oid4vci-component.png)
 
 ### Public Routes
 
@@ -145,7 +193,9 @@ controller ->> alice: redirect to success page
 end
 end
 ```
+
 ### Credential Presentation
+
 ```mermaid
 sequenceDiagram
 autonumber
@@ -164,13 +214,13 @@ admin ->> acapy: store presentation definition
 admin -->> controller: created presentation definition
 alice ->> controller: Hits web page initiating presentation
 controller ->> admin: POST /oid4vp/request
-admin ->> acapy: save request record associated <br/>with a particular pres def 
+admin ->> acapy: save request record associated <br/>with a particular pres def
 admin -->> controller: request URI
 controller ->> alice: QR Code
 alice ->> holder: Scan QR Code
 holder ->> public: GET /oid4vp/request/{request_id} (request uri in QR code)
 public -> acapy: retrieve stored request
-public -->> holder: request 
+public -->> holder: request
 holder ->> public: POST /oid4vp/response/{presentation_id}
 acapy ->> controller: POST /topic/oid4vp <br/>(state: presentation-valid/invalid)
 controller ->> holder: result
@@ -183,26 +233,26 @@ controller ->> holder: result
 The Plugin expects the following configuration options. These options can either be set by environment variable (`OID4VCI_*`) or by plugin config value (`-o oid4vci.*`).
 
 - `OID4VCI_HOST` or `oid4vci.host`
-    - Host used for the OpenID4VCI public server
+  - Host used for the OpenID4VCI public server
 - `OID4VCI_PORT` or `oid4vci.port`
-    - Port used for the OpenID4VCI public server
+  - Port used for the OpenID4VCI public server
 - `OID4VCI_ENDPOINT` or `oid4vci.endpoint`
-    - `credential_issuer` endpoint, seen in the Credential Offer
+  - `credential_issuer` endpoint, seen in the Credential Offer
 - `OID4VCI_CRED_HANDLER` or `oid4vci.cred_handler`
-    - Dict of credential handlers. e.g. `{"jwt_vc_json": "jwt_vc_json"}`
+  - Dict of credential handlers. e.g. `{"jwt_vc_json": "jwt_vc_json"}`
+- `OID4VCI_AUTH_SERVER_URL` or `oid4vci.auth_server_url`
+  - Optional authorization server URL
+- `OID4VCI_AUTH_SERVER_CLIENT` or `oid4vci.auth_server_client`
+  - Optional authorization server client credential, e.g. `{"auth_type": "client_secret_basic", "client_id": "client_id", "client_secret": "client_secret"}`
 
 ### Creating Supported Credential Records
 
-To issue a credential using OpenID4VCI, the Issuer must first prepare credential issuer metadata including which credentials the Issuer can issue. Below is an example payload to the `POST /oid4vci/credential-supported/create` endpoint:
+To issue a credential using OpenID4VCI, the Issuer must first prepare credential issuer metadata including which credentials the Issuer can issue. Below is an example payload to the `POST /oid4vci/credential-supported/create/jwt` endpoint:
 
 ```json
 {
-  "cryptographic_binding_methods_supported": [
-    "did"
-  ],
-  "cryptographic_suites_supported": [
-    "ES256K"
-  ],
+  "cryptographic_binding_methods_supported": ["did"],
+  "cryptographic_suites_supported": ["ES256K"],
   "display": [
     {
       "name": "University Credential",
@@ -216,56 +266,45 @@ To issue a credential using OpenID4VCI, the Issuer must first prepare credential
     }
   ],
   "format": "jwt_vc_json",
-  "format_data": {
-    "credentialSubject": {
-      "degree": {},
-      "given_name": {
-        "display": [
-          {
-            "name": "Given Name",
-            "locale": "en-US"
-          }
-        ]
-      },
-      "gpa": {
-        "display": [
-          {
-            "name": "GPA"
-          }
-        ]
-      },
-      "last_name": {
-        "display": [
-          {
-            "name": "Surname",
-            "locale": "en-US"
-          }
-        ]
-      }
+  "credentialSubject": {
+    "degree": {},
+    "given_name": {
+      "display": [
+        {
+          "name": "Given Name",
+          "locale": "en-US"
+        }
+      ]
     },
-    "types": [
-      "VerifiableCredential",
-      "UniversityDegreeCredential"
-    ]
+    "gpa": {
+      "display": [
+        {
+          "name": "GPA"
+        }
+      ]
+    },
+    "last_name": {
+      "display": [
+        {
+          "name": "Surname",
+          "locale": "en-US"
+        }
+      ]
+    }
   },
+  "type": ["VerifiableCredential", "UniversityDegreeCredential"],
   "id": "UniversityDegreeCredential",
-  "vc_additional_data": {
-    "@context": [
-      "https://www.w3.org/2018/credentials/v1",
-      "https://www.w3.org/2018/credentials/examples/v1"
-    ],
-    "type": [
-      "VerifiableCredential",
-      "UniversityDegreeCredential"
-    ]
-  }
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://www.w3.org/2018/credentials/examples/v1"
+  ]
 }
 ```
 
 For the `id`, `format`, `cryptographic_binding_supported`, `cryptographic_suites_supported`, and `display` attributes, see the [OpenID4VCI Specification, Section 10.2.3][oid4vci].
 
-- `format_data`: This attribute represents data specific to a given credential format. In this Supported Credential, which is of format `jwt_vc_json`, this includes `types` (required for JWT-VC) and `credentialSubject` (which represents display characteristics of the credential only and is not an exhaustive list of the credential attributes). These values are reported in the credential issuer metadata.
-- `vc_additional_data`: This attribute represents data that is included in all credentials of this type. In this Supported Credential, this includes the `@context` of credential to be issued as well as the `type`. These values are NOT reported in the credential issuer metadata.
+- `type` is a required attribute for JWT-VC (recorded as `types` in the `SupportedCredential.format_data` dictionary), and `credentialSubject` represents display characteristics of the credential only and is not an exhaustive list of the credential attributes. These values are reported in the credential issuer metadata.
+- The `@context` of credential to be issued, as well as the `type` are stored in the `SupportedCredential.vc_additional_data` dictionary. These values are NOT reported in the credential issuer metadata.
 
 When the Controller sets up a Supported Credential record using the Admin API, the holder, upon requesting Credential Issuer Metadata, will receive the following information in response:
 
@@ -276,12 +315,8 @@ When the Controller sets up a Supported Credential record using the Admin API, t
   "credentials_supported": [
     {
       "format": "jwt_vc_json",
-      "cryptographic_binding_methods_supported": [
-        "did"
-      ],
-      "cryptographic_suites_supported": [
-        "ES256K"
-      ],
+      "cryptographic_binding_methods_supported": ["did"],
+      "cryptographic_suites_supported": ["ES256K"],
       "display": [
         {
           "name": "University Credential",
@@ -321,10 +356,7 @@ When the Controller sets up a Supported Credential record using the Admin API, t
           ]
         }
       },
-      "types": [
-        "VerifiableCredential",
-        "UniversityDegreeCredential"
-      ]
+      "types": ["VerifiableCredential", "UniversityDegreeCredential"]
     }
   ]
 }
@@ -356,9 +388,8 @@ poetry run pytest tests/
 This plugin includes two sets of integration tests:
 
 - Tests against a minimal OpenID4VCI Client written in Python
-- Tests against AFJ + OpenID4VCI Client Package (not complete!)
-
-AFJ has an active PR working on adding support for Draft 11 version of the OpenID4VCI specification. Until that PR is in and available in a release, these tests are incomplete and ignored.
+- Interop Tests against Credo and Sphereon
+  - The interop tests require an https endpoint, so they aren't run with the regular integration tests. See `integration/README.md` for instructions on running the interop tests
 
 To run the integration tests:
 
@@ -373,9 +404,8 @@ For Apple Silicon, the `DOCKER_DEFAULT_PLATFORM=linux/amd64` environment variabl
 
 ## Not Implemented
 
-- `ldp_vc`, `sd_jwt_vc`
+- `ldp_vc`
 - Authorization Code Flow
-- Only signature suite supported by ACA-Py for jwt-vc right now is `EdDSA`
 - GET /.well-known/openid-configuration
 - GET /.well-known/oauth-authorization-server
 - Batch Credential Issuance

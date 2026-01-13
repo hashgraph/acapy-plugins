@@ -1,0 +1,43 @@
+# Multitenant admin agent configuration
+
+auto-provision: true
+label: multitenant-admin
+
+admin: [0.0.0.0, 8020]
+admin-insecure-mode: true
+
+inbound-transport:
+  - [ws, 0.0.0.0, 8021]
+  - [http, 0.0.0.0, 8022]
+outbound-transport: [ws, http]
+
+wallet-type: askar-anoncreds
+wallet-storage-type: default
+wallet-name: multitenant-admin-wallet
+wallet-key: multitenant-admin-wallet-key
+wallet-allow-insecure-seed: true # For testing only
+
+endpoint: http://localhost:9050
+
+no-ledger: true
+
+# Connections
+debug-connections: true
+auto-accept-invites: true
+auto-accept-requests: true
+auto-ping-connection: true
+auto-store-credential: true
+
+# Multi-tenancy
+multitenant: true
+jwt-secret: insecure-jwt-secret
+multitenant-admin: true
+
+log-level: info
+
+# Plugin
+plugin:
+  - webvh
+plugin-config-value:
+  - webvh.server_url=https://sandbox.bcvh.vonx.io
+

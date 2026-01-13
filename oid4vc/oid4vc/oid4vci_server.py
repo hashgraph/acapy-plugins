@@ -16,6 +16,7 @@ from acapy_agent.multitenant.base import BaseMultitenantManager
 from aiohttp import web
 from aiohttp_apispec import setup_aiohttp_apispec, validation_middleware
 
+from .app_resources import AppResources
 from .public_routes import register as public_routes_register
 
 LOGGER = logging.getLogger(__name__)
@@ -66,7 +67,7 @@ class Oid4vciServer(BaseAdminServer):
         async def setup_context(request: web.Request, handler):
             """Set up request context.
 
-            This middleware is responsible for setting up the request context for the 
+            This middleware is responsible for setting up the request context for the
             handler. If multitenancy is enabled and a wallet_id is provided in the request
             the wallet profile is retrieved and injected into the context.
 
@@ -75,7 +76,7 @@ class Oid4vciServer(BaseAdminServer):
                 handler: The handler function to be executed.
 
             Returns:
-                The result of executing the handler function with the updated request 
+                The result of executing the handler function with the updated request
                 context.
             """
             multitenant = self.multitenant_manager
@@ -128,7 +129,7 @@ class Oid4vciServer(BaseAdminServer):
             ]
         )
 
-        await public_routes_register(app, self.multitenant_manager)
+        await public_routes_register(app, self.multitenant_manager, self.context)
 
         cors = aiohttp_cors.setup(
             app,
@@ -176,6 +177,7 @@ class Oid4vciServer(BaseAdminServer):
             await self.site.start()
             self.app._state["ready"] = True
             self.app._state["alive"] = True
+            await AppResources.startup()
         except OSError:
             raise AdminSetupError(
                 "Unable to start webserver with host "
@@ -188,6 +190,7 @@ class Oid4vciServer(BaseAdminServer):
         if self.site:
             await self.site.stop()
             self.site = None
+        await AppResources.shutdown()
 
     async def redirect_handler(self, request: web.BaseRequest):
         """Perform redirect to documentation."""

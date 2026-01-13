@@ -16,7 +16,9 @@ no-ledger: true
 
 # Wallet
 auto-provision: true
-wallet-test: true
+wallet-type: askar
+wallet-name: firebase_push_notifications
+wallet-key: firebase_push_notifications
 
 # Mediation
 open-mediation: true
@@ -32,6 +34,5 @@ auto-accept-requests: true
 log-level: info
 
 # Invitation
-connections-invite: true
 invite-label: "Mediator"
 invite-multi-use: true

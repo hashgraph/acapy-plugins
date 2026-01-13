@@ -20,14 +20,14 @@ jobs:
       #       Check out repo
       #----------------------------------------------
       - name: Check out repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v5
       #----------------------------------------------
       #       Install python and poetry with cache
       #----------------------------------------------
       - name: Install poetry
-        run: pipx install poetry
+        run: pipx install poetry==2.1.2
         id: setup-poetry
-      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: "poetry"
@@ -36,7 +36,7 @@ jobs:
       #----------------------------------------------
       - name: Get changed files
         id: changed-files
-        uses: step-security/changed-files@3dbe17c78367e7d60f00d78ae6781a35be47b4a1 # v45.0.1
+        uses: tj-actions/changed-files@v47.0.0
       #----------------------------------------------
       #       Get changed plugins
       #----------------------------------------------
@@ -83,6 +83,7 @@ jobs:
           for dir in ${{ steps.changed-plugins.outputs.changed-plugins }}; do
             cd $dir
             poetry run ruff check .
+            poetry run ruff format --check .
             cd ..
           done
       #----------------------------------------------

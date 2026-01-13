@@ -8,15 +8,16 @@ from acapy_agent.core.profile import Profile
 from acapy_agent.core.util import SHUTDOWN_EVENT_PATTERN, STARTUP_EVENT_PATTERN
 from acapy_agent.resolver.did_resolver import DIDResolver
 from acapy_agent.wallet.did_method import DIDMethods
-from acapy_agent.wallet.key_type import KeyTypes
 
 from jwt_vc_json.cred_processor import JwtVcJsonCredProcessor
 from oid4vc.cred_processor import CredProcessors
 
+from .app_resources import AppResources
 from .config import Config
-from .jwk import DID_JWK, P256
+from .jwk import DID_JWK
 from .jwk_resolver import JwkResolver
 from .oid4vci_server import Oid4vciServer
+from .status_handler import StatusHandler
 
 LOGGER = logging.getLogger(__name__)
 
@@ -33,9 +34,6 @@ async def setup(context: InjectionContext):
     methods = context.inject(DIDMethods)
     methods.register(DID_JWK)
 
-    key_types = context.inject(KeyTypes)
-    key_types.register(P256)
-
     # Include jwt_vc_json by default
     jwt_vc_json = JwtVcJsonCredProcessor()
     processors = CredProcessors()
@@ -47,6 +45,9 @@ async def setup(context: InjectionContext):
     processors.register_pres_verifier("jwt_vp", jwt_vc_json)
 
     context.injector.bind_instance(CredProcessors, processors)
+
+    status_handler = StatusHandler(context)
+    context.injector.bind_instance(StatusHandler, status_handler)
 
 
 async def startup(profile: Profile, event: Event):
@@ -60,6 +61,7 @@ async def startup(profile: Profile, event: Event):
             profile,
         )
         profile.context.injector.bind_instance(Oid4vciServer, oid4vci)
+        await AppResources.startup(config)
     except Exception:
         LOGGER.exception("Unable to register admin server")
         raise
@@ -72,3 +74,4 @@ async def shutdown(context: InjectionContext):
     """Teardown the plugin."""
     oid4vci = context.inject(Oid4vciServer)
     await oid4vci.stop()
+    await AppResources.shutdown()

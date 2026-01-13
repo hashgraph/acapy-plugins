@@ -14,11 +14,9 @@ from acapy_agent.wallet.jwt import (
     nym_to_did,
 )
 from acapy_agent.wallet.jwt import b64_to_bytes, b64_to_dict
-from acapy_agent.wallet.key_type import ED25519
+from acapy_agent.wallet.key_type import ED25519, P256
 from acapy_agent.wallet.util import b58_to_bytes, bytes_to_b64
 from aries_askar import Key, KeyAlg
-
-from oid4vc.jwk import P256
 
 
 @dataclass
@@ -100,7 +98,6 @@ async def jwt_sign(
         wallet = session.inject(BaseWallet)
         did_info = await wallet.get_local_did(did_lookup_name(did))
 
-        did_info = await wallet.get_local_did(did_lookup_name(did))
         if did_info.key_type == ED25519:
             headers["alg"] = "EdDSA"
         elif did_info.key_type == P256:

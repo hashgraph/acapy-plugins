@@ -25,6 +25,9 @@ class Config:
     host: str
     port: int
     endpoint: str
+    status_handler: str | None = None
+    auth_server_url: str | None = None
+    auth_server_client: str | None = None
 
     @classmethod
     def from_settings(cls, settings: BaseSettings) -> "Config":
@@ -34,7 +37,15 @@ class Config:
         host = plugin_settings.get("host") or getenv("OID4VCI_HOST")
         port = int(plugin_settings.get("port") or getenv("OID4VCI_PORT", "0"))
         endpoint = plugin_settings.get("endpoint") or getenv("OID4VCI_ENDPOINT")
-
+        status_handler = plugin_settings.get("status_handler") or getenv(
+            "OID4VCI_STATUS_HANDLER"
+        )
+        auth_server_url = plugin_settings.get("auth_server_url") or getenv(
+            "OID4VCI_AUTH_SERVER_URL"
+        )
+        auth_server_client = plugin_settings.get("auth_server_client") or getenv(
+            "OID4VCI_AUTH_SERVER_CLIENT"
+        )
         if not host:
             raise ConfigError("host", "OID4VCI_HOST")
         if not port:
@@ -42,4 +53,6 @@ class Config:
         if not endpoint:
             raise ConfigError("endpoint", "OID4VCI_ENDPOINT")
 
-        return cls(host, port, endpoint)
+        return cls(
+            host, port, endpoint, status_handler, auth_server_url, auth_server_client
+        )

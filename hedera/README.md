@@ -2,7 +2,7 @@
 
 ## Description
 
-This plugin provides components for adding [Hedera DID method](https://github.com/hashgraph/did-method) and Anoncreds registry support for ACA-Py.
+This plugin provides components for adding [Hedera DID method](https://github.com/hashgraph/did-method) and AnonCreds registry support for ACA-Py.
 
 ### Structure
 Under the hood, the plugin consists from following core components:
@@ -18,7 +18,7 @@ Hedera plugin aims to add Hedera DID support to existing ACA-Py flows, without b
 The plugin adds a new endpoint for creating Hedera DID:
 - `POST /hedera/did/register`
 
-Other operations with Hedera DID and Anoncreds registry supported via existing ACA-Py endpoints:
+Other operations with Hedera DID and AnonCreds registry supported via existing ACA-Py endpoints:
 - `POST /anoncreds/schema`
 - `POST /anoncreds/credential-definition`
 - `POST /anoncreds/revocation/revoke`
@@ -30,7 +30,7 @@ Other operations with Hedera DID and Anoncreds registry supported via existing A
 
 The repo contains an interactive demo of ACA-Py + Hedera plugin that can be used to test Hedera DID and AnonCreds Registry functionality.
 
-Please see corresponding [demo folder and README](./demo)
+Please see corresponding [demo folder and README](https://github.com/openwallet-foundation/acapy-plugins/tree/main/hedera/demo)
 
 ## Usage
 
@@ -46,9 +46,10 @@ Please see corresponding [demo folder and README](./demo)
   - Hedera Operator configuration
     - Includes Hedera Operator ID and private key
     - Used for Hedera network integration and paying fees
+    - Can be obtained by creating developer account on [Hedera Dev Portal](https://portal.hedera.com/)
 - The plugin works only with `askar-anoncreds` wallet type
 
-An example configuration for the plugin can be found in [plugins-config.yml](./docker/plugins-config.yml)
+An example configuration for the plugin can be found in [plugins-config.yml](https://github.com/openwallet-foundation/acapy-plugins/blob/main/hedera/docker/plugins-config.yml)
 
 You can also use environment variables to configure the plugin:
 - `HEDERA_NETWORK`
@@ -82,7 +83,7 @@ ENTRYPOINT ["aca-py"]
 
 ```
 
-More complete example (including complete dependencies setup) can be found [in docker folder](./docker/Dockerfile) 
+More complete example (including complete dependencies setup) can be found [in docker folder](https://github.com/openwallet-foundation/acapy-plugins/blob/main/hedera/docker/Dockerfile) 
 
 ### Create a DID
 
@@ -161,4 +162,4 @@ A coverage report is created when ran from the devcontainer.
 
 Integration tests and configurations are hosted in `integration` folder.
 
-See corresponding [README](./integration/README.md) for details.
+See corresponding [README](https://github.com/openwallet-foundation/acapy-plugins/blob/main/hedera/integration/README.md) for details.

@@ -9,6 +9,7 @@ from urllib.parse import quote
 from acapy_agent.admin.decorators.auth import tenant_authentication
 from acapy_agent.admin.request_context import AdminRequestContext
 from acapy_agent.askar.profile import AskarProfileSession
+from acapy_agent.core.profile import Profile
 from acapy_agent.messaging.models.base import BaseModelError
 from acapy_agent.messaging.models.openapi import OpenAPISchema
 from acapy_agent.messaging.valid import (
@@ -23,7 +24,7 @@ from acapy_agent.wallet.default_verification_key_strategy import (
 )
 from acapy_agent.wallet.did_info import DIDInfo
 from acapy_agent.wallet.jwt import nym_to_did
-from acapy_agent.wallet.key_type import KeyTypes
+from acapy_agent.wallet.key_type import KeyTypes, P256
 from acapy_agent.wallet.util import bytes_to_b64
 from aiohttp import web
 from aiohttp_apispec import (
@@ -37,18 +38,28 @@ from aries_askar import Key, KeyAlg
 from marshmallow import fields
 from marshmallow.validate import OneOf
 
+
 from oid4vc.cred_processor import CredProcessors
-from oid4vc.jwk import DID_JWK, P256
+from oid4vc.jwk import DID_JWK
+from oid4vc.models.dcql_query import (
+    CredentialQuery,
+    CredentialQuerySchema,
+    CredentialSetQuerySchema,
+    DCQLQuery,
+    DCQLQuerySchema,
+)
 from oid4vc.models.presentation import OID4VPPresentation, OID4VPPresentationSchema
 from oid4vc.models.presentation_definition import OID4VPPresDef, OID4VPPresDefSchema
 from oid4vc.models.request import OID4VPRequest, OID4VPRequestSchema
 
+from .app_resources import AppResources
 from .config import Config
 from .models.exchange import OID4VCIExchangeRecord, OID4VCIExchangeRecordSchema
 from .models.supported_cred import SupportedCredential, SupportedCredentialSchema
+from .utils import get_auth_header, get_tenant_subpath
 
 VCI_SPEC_URI = (
-    "https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0-11.html"
+    "https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0-13.html"
 )
 VP_SPEC_URI = "https://openid.net/specs/openid-4-verifiable-presentations-1_0-ID2.html"
 LOGGER = logging.getLogger(__name__)
@@ -104,9 +115,7 @@ async def list_exchange_records(request: web.BaseRequest):
     try:
         async with context.profile.session() as session:
             if exchange_id := request.query.get("exchange_id"):
-                record = await OID4VCIExchangeRecord.retrieve_by_id(
-                    session, exchange_id
-                )
+                record = await OID4VCIExchangeRecord.retrieve_by_id(session, exchange_id)
                 results = [record.serialize()]
             else:
                 filter_ = {
@@ -162,14 +171,7 @@ class ExchangeRecordCreateRequestSchema(OpenAPISchema):
     )
 
 
-@docs(
-    tags=["oid4vci"],
-    summary=("Create a credential exchange record"),
-)
-@request_schema(ExchangeRecordCreateRequestSchema())
-@response_schema(OID4VCIExchangeRecordSchema())
-@tenant_authentication
-async def exchange_create(request: web.Request):
+async def create_exchange(request: web.Request, refresh_id: str | None = None):
     """Request handler for creating a credential from attr values.
 
     The internal credential record will be created without the credential
@@ -177,6 +179,7 @@ async def exchange_create(request: web.Request):
 
     Args:
         request: aiohttp request object
+        refresh_id: optional refresh identifier for the exchange record
 
     Returns:
         The credential exchange record
@@ -232,6 +235,7 @@ async def exchange_create(request: web.Request):
     except ValueError as err:
         raise web.HTTPBadRequest(reason=str(err)) from err
 
+    notification_id = secrets.token_urlsafe(CODE_BYTES)
     record = OID4VCIExchangeRecord(
         supported_cred_id=supported_cred_id,
         credential_subject=credential_subject,
@@ -239,13 +243,76 @@ async def exchange_create(request: web.Request):
         state=OID4VCIExchangeRecord.STATE_CREATED,
         verification_method=verification_method,
         issuer_id=issuer_id,
+        refresh_id=refresh_id,
+        notification_id=notification_id,
     )
     LOGGER.debug(f"Created exchange record: {record}")
 
     async with context.session() as session:
         await record.save(session, reason="New OpenID4VCI exchange")
 
+    return record
+
+
+@docs(
+    tags=["oid4vci"],
+    summary=("Create a credential exchange record"),
+)
+@request_schema(ExchangeRecordCreateRequestSchema())
+@response_schema(OID4VCIExchangeRecordSchema())
+@tenant_authentication
+async def exchange_create(request: web.Request):
+    """Request handler for creating a credential from attr values."""
+
+    record = await create_exchange(request)
     return web.json_response(record.serialize())
+
+
+class ExchangeRefreshIDMatchSchema(OpenAPISchema):
+    """Path parameters and validators for request taking credential exchange id."""
+
+    refresh_id = fields.Str(
+        required=True,
+        metadata={
+            "description": "Credential refresh identifier",
+        },
+    )
+
+
+@docs(
+    tags=["oid4vci"],
+    summary=("Patch a credential exchange record"),
+)
+@match_info_schema(ExchangeRefreshIDMatchSchema())
+@request_schema(ExchangeRecordCreateRequestSchema())
+@response_schema(OID4VCIExchangeRecordSchema())
+@tenant_authentication
+async def credential_refresh(request: web.Request):
+    """Request handler for creating a refresh credential from attr values."""
+    context: AdminRequestContext = request["context"]
+    refresh_id = request.match_info["refresh_id"]
+
+    try:
+        async with context.session() as session:
+            try:
+                existing = await OID4VCIExchangeRecord.retrieve_by_refresh_id(
+                    session=session,
+                    refresh_id=refresh_id,
+                    for_update=True,
+                )
+                if existing:
+                    if existing.state == OID4VCIExchangeRecord.STATE_OFFER_CREATED:
+                        raise web.HTTPBadRequest(reason="Offer exists; cannot refresh.")
+                    else:
+                        existing.state = OID4VCIExchangeRecord.STATE_SUPERCEDED
+                        await existing.save(session, reason="Superceded by new request.")
+            except StorageNotFoundError:
+                pass
+        record = await create_exchange(request, refresh_id)
+        return web.json_response(record.serialize())
+
+    except (StorageError, BaseModelError) as err:
+        raise web.HTTPBadRequest(reason=err.roll_up) from err
 
 
 class ExchangeRecordIDMatchSchema(OpenAPISchema):
@@ -257,6 +324,29 @@ class ExchangeRecordIDMatchSchema(OpenAPISchema):
             "description": "Credential exchange identifier",
         },
     )
+
+
+@docs(
+    tags=["oid4vci"],
+    summary="Retrieve an exchange record by ID",
+)
+@match_info_schema(ExchangeRecordIDMatchSchema())
+@response_schema(OID4VCIExchangeRecordSchema())
+async def get_exchange_by_id(request: web.Request):
+    """Request handler for retrieving an exchange record."""
+
+    context: AdminRequestContext = request["context"]
+    exchange_id = request.match_info["exchange_id"]
+
+    try:
+        async with context.session() as session:
+            record = await OID4VCIExchangeRecord.retrieve_by_id(session, exchange_id)
+    except StorageNotFoundError as err:
+        raise web.HTTPNotFound(reason=err.roll_up) from err
+    except (StorageError, BaseModelError) as err:
+        raise web.HTTPBadRequest(reason=err.roll_up) from err
+
+    return web.json_response(record.serialize())
 
 
 @docs(
@@ -320,42 +410,93 @@ class CredOfferSchema(OpenAPISchema):
     grants = fields.Nested(CredOfferGrantSchema(), required=True)
 
 
-class CredOfferResponseSchema(OpenAPISchema):
+class CredOfferResponseSchemaVal(OpenAPISchema):
     """Credential Offer Schema."""
 
-    offer_uri = fields.Str(
+    credential_offer = fields.Str(
         required=True,
         metadata={
-            "description": "The URL of the credential issuer.",
+            "description": "The URL of the credential value for display by QR code.",
             "example": "openid-credential-offer://...",
         },
     )
     offer = fields.Nested(CredOfferSchema(), required=True)
 
 
-@docs(tags=["oid4vci"], summary="Get a credential offer")
-@querystring_schema(CredOfferQuerySchema())
-@response_schema(CredOfferResponseSchema(), 200)
-@tenant_authentication
-async def get_cred_offer(request: web.BaseRequest):
-    """Endpoint to retrieve an OpenID4VCI compliant offer.
+class CredOfferResponseSchemaRef(OpenAPISchema):
+    """Credential Offer Schema."""
 
-    For example, can be used in QR-Code presented to a compliant wallet.
+    credential_offer_uri = fields.Str(
+        required=True,
+        metadata={
+            "description": "A URL which references the credential for display.",
+            "example": "openid-credential-offer://...",
+        },
+    )
+    offer = fields.Nested(CredOfferSchema(), required=True)
+
+
+async def _create_pre_auth_code(
+    profile: Profile,
+    config: Config,
+    subject_id: str,
+    credential_configuration_id: str | None = None,
+    user_pin: str | None = None,
+) -> str:
+    """Create a secure random pre-authorized code."""
+
+    if config.auth_server_url:
+        subpath = get_tenant_subpath(profile, tenant_prefix="/tenant")
+        issuer_server_url = f"{config.endpoint}{subpath}"
+
+        auth_server_url = f"{config.auth_server_url}{get_tenant_subpath(profile)}"
+        grants_endpoint = f"{auth_server_url}/grants/pre-authorized-code"
+
+        auth_header = await get_auth_header(
+            profile, config, issuer_server_url, grants_endpoint
+        )
+        user_pin_required = user_pin is not None
+        resp = await AppResources.get_http_client().post(
+            grants_endpoint,
+            json={
+                "subject_id": subject_id,
+                "user_pin_required": user_pin_required,
+                "user_pin": user_pin,
+                "authorization_details": [
+                    {
+                        "type": "openid_credential",
+                        "credential_configuration_id": credential_configuration_id,
+                    }
+                ],
+            },
+            headers={"Authorization": f"{auth_header}"},
+        )
+        data = await resp.json()
+        code = data["pre_authorized_code"]
+    else:
+        code = secrets.token_urlsafe(CODE_BYTES)
+    return code
+
+
+async def _parse_cred_offer(context: AdminRequestContext, exchange_id: str) -> dict:
+    """Helper function for cred_offer request parsing.
+
+    Used in get_cred_offer and public_routes.dereference_cred_offer endpoints.
     """
-    context: AdminRequestContext = request["context"]
     config = Config.from_settings(context.settings)
-    exchange_id = request.query["exchange_id"]
-
-    code = secrets.token_urlsafe(CODE_BYTES)
-
     try:
         async with context.session() as session:
             record = await OID4VCIExchangeRecord.retrieve_by_id(session, exchange_id)
             supported = await SupportedCredential.retrieve_by_id(
                 session, record.supported_cred_id
             )
-
-            record.code = code
+            record.code = await _create_pre_auth_code(
+                context.profile,
+                config,
+                record.refresh_id,
+                supported.identifier,
+                record.pin,
+            )
             record.state = OID4VCIExchangeRecord.STATE_OFFER_CREATED
             await record.save(session, reason="Credential offer created")
     except (StorageError, BaseModelError) as err:
@@ -368,23 +509,68 @@ async def get_cred_offer(request: web.BaseRequest):
         else None
     )
     subpath = f"/tenant/{wallet_id}" if wallet_id else ""
-    offer = {
+    return {
         "credential_issuer": f"{config.endpoint}{subpath}",
         "credentials": [supported.identifier],
         "grants": {
             "urn:ietf:params:oauth:grant-type:pre-authorized_code": {
-                "pre-authorized_code": code,
+                "pre-authorized_code": record.code,
                 "user_pin_required": user_pin_required,
             }
         },
     }
+
+
+@docs(tags=["oid4vci"], summary="Get a credential offer by value")
+@querystring_schema(CredOfferQuerySchema())
+@response_schema(CredOfferResponseSchemaVal(), 200)
+@tenant_authentication
+async def get_cred_offer(request: web.BaseRequest):
+    """Endpoint to retrieve an OpenID4VCI compliant offer by value.
+
+    For example, can be used in QR-Code presented to a compliant wallet.
+    """
+    context: AdminRequestContext = request["context"]
+    exchange_id = request.query["exchange_id"]
+
+    offer = await _parse_cred_offer(context, exchange_id)
     offer_uri = quote(json.dumps(offer))
-    full_uri = f"openid-credential-offer://?credential_offer={offer_uri}"
     offer_response = {
         "offer": offer,
-        "offer_uri": full_uri,
+        "credential_offer": f"openid-credential-offer://?credential_offer={offer_uri}",
     }
+    return web.json_response(offer_response)
 
+
+@docs(tags=["oid4vci"], summary="Get a credential offer by reference")
+@querystring_schema(CredOfferQuerySchema())
+@response_schema(CredOfferResponseSchemaRef(), 200)
+@tenant_authentication
+async def get_cred_offer_by_ref(request: web.BaseRequest):
+    """Endpoint to retrieve an OpenID4VCI compliant offer by reference.
+
+    credential_offer_uri can be dereferenced at the /oid4vc/dereference-credential-offer
+    (see public_routes.dereference_cred_offer)
+
+    For example, can be used in QR-Code presented to a compliant wallet.
+    """
+    context: AdminRequestContext = request["context"]
+    exchange_id = request.query["exchange_id"]
+    wallet_id = (
+        context.profile.settings.get("wallet.id")
+        if context.profile.settings.get("multitenant.enabled")
+        else None
+    )
+
+    offer = await _parse_cred_offer(context, exchange_id)
+
+    config = Config.from_settings(context.settings)
+    subpath = f"/tenant/{wallet_id}" if wallet_id else ""
+    ref_uri = f"{config.endpoint}{subpath}/oid4vci/dereference-credential-offer"
+    offer_response = {
+        "offer": offer,
+        "credential_offer_uri": f"openid-credential-offer://?credential_offer={quote(ref_uri)}",
+    }
     return web.json_response(offer_response)
 
 
@@ -400,6 +586,10 @@ class SupportedCredCreateRequestSchema(OpenAPISchema):
     )
     cryptographic_suites_supported = fields.List(
         fields.Str(), metadata={"example": ["ES256K"]}
+    )
+    proof_types_supported = fields.Dict(
+        required=False,
+        metadata={"example": {"jwt": {"proof_signing_alg_values_supported": ["ES256"]}}},
     )
     display = fields.List(
         fields.Dict(),
@@ -434,7 +624,7 @@ class SupportedCredCreateRequestSchema(OpenAPISchema):
                     "degree": {},
                     "gpa": {"display": [{"name": "GPA"}]},
                 },
-                "types": ["VerifiableCredential", "UniversityDegreeCredential"],
+                "type": ["VerifiableCredential", "UniversityDegreeCredential"],
             },
         },
     )
@@ -457,19 +647,43 @@ class SupportedCredCreateRequestSchema(OpenAPISchema):
     )
 
 
+async def supported_cred_is_unique(identifier: str, profile: Profile):
+    """Check whether a record exists with a given identifier."""
+
+    async with profile.session() as session:
+        records = await SupportedCredential.query(
+            session, tag_filter={"identifier": identifier}
+        )
+
+    if len(records) > 0:
+        return False
+    return True
+
+
 @docs(tags=["oid4vci"], summary="Register a Oid4vci credential")
 @request_schema(SupportedCredCreateRequestSchema())
 @response_schema(SupportedCredentialSchema())
 @tenant_authentication
 async def supported_credential_create(request: web.Request):
     """Request handler for creating a credential supported record."""
-    context = request["context"]
-    assert isinstance(context, AdminRequestContext)
+    context: AdminRequestContext = request["context"]
     profile = context.profile
 
     body: Dict[str, Any] = await request.json()
     LOGGER.info(f"body: {body}")
+
+    if not await supported_cred_is_unique(body["id"], profile):
+        raise web.HTTPBadRequest(
+            reason=f"Record with identifier {body['id']} already exists."
+        )
     body["identifier"] = body.pop("id")
+
+    format_data: dict = body.get("format_data", {})
+    if format_data.get("vct") and format_data.get("type"):
+        raise web.HTTPBadRequest(
+            reason="Cannot have both `vct` and `type`. "
+            "`vct` is for SD JWT and `type` is for JWT VC"
+        )
 
     record = SupportedCredential(
         **body,
@@ -506,6 +720,10 @@ class JwtSupportedCredCreateRequestSchema(OpenAPISchema):
     )
     cryptographic_suites_supported = fields.List(
         fields.Str(), metadata={"example": ["ES256K"]}
+    )
+    proof_types_supported = fields.Dict(
+        required=False,
+        metadata={"example": {"jwt": {"proof_signing_alg_values_supported": ["ES256"]}}},
     )
     display = fields.List(
         fields.Dict(),
@@ -583,17 +801,24 @@ async def supported_credential_create_jwt(request: web.Request):
     profile = context.profile
 
     body: Dict[str, Any] = await request.json()
+
+    if not await supported_cred_is_unique(body["id"], profile):
+        raise web.HTTPBadRequest(
+            reason=f"Record with identifier {body['id']} already exists."
+        )
+
     LOGGER.info(f"body: {body}")
     body["identifier"] = body.pop("id")
     format_data = {}
-    format_data["types"] = body.pop("type")
-    format_data["credential_subject"] = body.pop("credentialSubject", None)
+    format_data["type"] = body.pop("type")
+    format_data["credentialSubject"] = body.pop("credentialSubject", None)
     format_data["context"] = body.pop("@context")
     format_data["order"] = body.pop("order", None)
     vc_additional_data = {}
     vc_additional_data["@context"] = format_data["context"]
     # type vs types is deliberate; OID4VCI spec is inconsistent with VCDM
-    vc_additional_data["type"] = format_data["types"]
+    # ~ in Draft 11, fixed in later drafts
+    vc_additional_data["type"] = format_data["type"]
 
     record = SupportedCredential(
         **body,
@@ -696,6 +921,126 @@ class SupportedCredentialMatchSchema(OpenAPISchema):
 
 @docs(
     tags=["oid4vci"],
+    summary="Get a credential supported record by ID",
+)
+@match_info_schema(SupportedCredentialMatchSchema())
+@response_schema(SupportedCredentialSchema())
+async def get_supported_credential_by_id(request: web.Request):
+    """Request handler for retrieving an credential supported record by ID."""
+
+    context: AdminRequestContext = request["context"]
+    supported_cred_id = request.match_info["supported_cred_id"]
+
+    try:
+        async with context.session() as session:
+            record = await SupportedCredential.retrieve_by_id(session, supported_cred_id)
+    except StorageNotFoundError as err:
+        raise web.HTTPNotFound(reason=err.roll_up) from err
+    except (StorageError, BaseModelError) as err:
+        raise web.HTTPBadRequest(reason=err.roll_up) from err
+
+    return web.json_response(record.serialize())
+
+
+class UpdateJwtSupportedCredentialResponseSchema(OpenAPISchema):
+    """Response schema for updating an OID4VP PresDef."""
+
+    supported_cred = fields.Dict(
+        required=True,
+        metadata={"descripton": "The updated Supported Credential"},
+    )
+
+    supported_cred_id = fields.Str(
+        required=True,
+        metadata={
+            "description": "Supported Credential identifier",
+        },
+    )
+
+
+async def jwt_supported_cred_update_helper(
+    record: SupportedCredential,
+    body: Dict[str, Any],
+    session: AskarProfileSession,
+) -> SupportedCredential:
+    """Helper method for updating a JWT Supported Credential Record."""
+    format_data = {}
+    vc_additional_data = {}
+
+    format_data["type"] = body.get("type")
+    format_data["credentialSubject"] = body.get("credentialSubject", None)
+    format_data["context"] = body.get("@context")
+    format_data["order"] = body.get("order", None)
+    vc_additional_data["@context"] = format_data["context"]
+    # type vs types is deliberate; OID4VCI spec is inconsistent with VCDM
+    # ~ as of Draft 11, fixed in later drafts
+    vc_additional_data["type"] = format_data["type"]
+
+    record.identifier = body["id"]
+    record.format = body["format"]
+    record.cryptographic_binding_methods_supported = body.get(
+        "cryptographic_binding_methods_supported", None
+    )
+    record.cryptographic_suites_supported = body.get(
+        "cryptographic_suites_supported", None
+    )
+    record.proof_types_supported = body.get("proof_types_supported", None)
+    record.display = body.get("display", None)
+    record.format_data = format_data
+    record.vc_additional_data = vc_additional_data
+
+    await record.save(session)
+    return record
+
+
+@docs(
+    tags=["oid4vci"],
+    summary="Update a Supported Credential. "
+    "Expected to be a complete replacement of a JWT Supported Credential record, "
+    "i.e., optional values that aren't supplied will be `None`, rather than retaining "
+    "their original value.",
+)
+@match_info_schema(SupportedCredentialMatchSchema())
+@request_schema(JwtSupportedCredCreateRequestSchema())
+@response_schema(SupportedCredentialSchema())
+async def update_supported_credential_jwt_vc(request: web.Request):
+    """Update a JWT Supported Credential record."""
+
+    context: AdminRequestContext = request["context"]
+    body: Dict[str, Any] = await request.json()
+    supported_cred_id = request.match_info["supported_cred_id"]
+
+    LOGGER.info(f"body: {body}")
+    try:
+        async with context.session() as session:
+            record = await SupportedCredential.retrieve_by_id(session, supported_cred_id)
+
+            assert isinstance(session, AskarProfileSession)
+            record = await jwt_supported_cred_update_helper(record, body, session)
+
+    except StorageNotFoundError as err:
+        raise web.HTTPNotFound(reason=err.roll_up) from err
+    except (StorageError, BaseModelError) as err:
+        raise web.HTTPBadRequest(reason=err.roll_up) from err
+
+    registered_processors = context.inject(CredProcessors)
+    if record.format not in registered_processors.issuers:
+        raise web.HTTPBadRequest(
+            reason=f"Format {record.format} is not supported by"
+            " currently registered processors"
+        )
+
+    processor = registered_processors.issuer_for_format(record.format)
+    try:
+        processor.validate_supported_credential(record)
+    except ValueError as err:
+        raise web.HTTPBadRequest(reason=str(err)) from err
+
+    return web.json_response(record.serialize())
+
+
+@docs(
+    tags=["oid4vci"],
     summary="Remove an existing credential supported record",
 )
 @match_info_schema(SupportedCredentialMatchSchema())
@@ -709,9 +1054,7 @@ async def supported_credential_remove(request: web.Request):
 
     try:
         async with context.session() as session:
-            record = await SupportedCredential.retrieve_by_id(
-                session, supported_cred_id
-            )
+            record = await SupportedCredential.retrieve_by_id(session, supported_cred_id)
             await record.delete_record(session)
     except StorageNotFoundError as err:
         raise web.HTTPNotFound(reason=err.roll_up) from err
@@ -754,6 +1097,13 @@ class CreateOID4VPReqRequestSchema(OpenAPISchema):
         },
     )
 
+    dcql_query_id = fields.Str(
+        required=False,
+        metadata={
+            "description": "Identifier used to identify DCQL query",
+        },
+    )
+
     vp_formats = fields.Dict(
         required=True,
         metadata={
@@ -775,17 +1125,28 @@ async def create_oid4vp_request(request: web.Request):
     body = await request.json()
 
     async with context.session() as session:
-        req_record = OID4VPRequest(
-            pres_def_id=body["pres_def_id"], vp_formats=body["vp_formats"]
-        )
-        await req_record.save(session=session)
+        if pres_def_id := body.get("pres_def_id"):
+            req_record = OID4VPRequest(
+                pres_def_id=pres_def_id, vp_formats=body["vp_formats"]
+            )
+            await req_record.save(session=session)
 
-        pres_record = OID4VPPresentation(
-            pres_def_id=body["pres_def_id"],
-            state=OID4VPPresentation.REQUEST_CREATED,
-            request_id=req_record.request_id,
-        )
-        await pres_record.save(session=session)
+            pres_record = OID4VPPresentation(
+                pres_def_id=pres_def_id,
+                state=OID4VPPresentation.REQUEST_CREATED,
+                request_id=req_record.request_id,
+            )
+            await pres_record.save(session=session)
+
+        elif dcql_query_id := body.get("dcql_query_id"):
+            req_record = OID4VPRequest(
+                dcql_query_id=dcql_query_id, vp_formats=body["vp_formats"]
+            )
+            await req_record.save(session=session)
+        else:
+            raise web.HTTPBadRequest(
+                reason="One of pres_def_id or dcql_query_id must be provided"
+            )
 
     config = Config.from_settings(context.settings)
     wallet_id = (
@@ -806,13 +1167,247 @@ async def create_oid4vp_request(request: web.Request):
     )
 
 
-class CreateOID4VPPresDefResponseSchema(OpenAPISchema):
-    """Response schema for creating an OID4VP PresDef."""
+class OID4VPRequestQuerySchema(OpenAPISchema):
+    """Parameters and validators for presentations list query."""
 
-    pres_def = fields.Dict(
-        required=True,
-        metadata={"descripton": "The created presentation definition"},
+    request_id = fields.UUID(
+        required=False,
+        metadata={"description": "Filter by request identifier."},
     )
+    pres_def_id = fields.Str(
+        required=False,
+        metadata={"description": "Filter by presentation definition identifier."},
+    )
+    dcql_query_id = fields.Str(
+        required=False,
+        metadata={"description": "Filter by DCQL query identifier."},
+    )
+
+
+class OID4VPRequestListSchema(OpenAPISchema):
+    """Result schema for an presentations query."""
+
+    results = fields.Nested(
+        OID4VPPresentationSchema(),
+        many=True,
+        metadata={"description": "Presentation Requests"},
+    )
+
+
+@docs(
+    tags=["oid4vp"],
+    summary="Fetch all OID4VP Requests.",
+)
+@querystring_schema(OID4VPRequestQuerySchema())
+@response_schema(OID4VPRequestListSchema())
+async def list_oid4vp_requests(request: web.Request):
+    """Request handler for searching requests."""
+
+    context: AdminRequestContext = request["context"]
+
+    try:
+        async with context.profile.session() as session:
+            if request_id := request.query.get("request_id"):
+                record = await OID4VPRequest.retrieve_by_id(session, request_id)
+                results = [record.serialize()]
+            else:
+                filter_ = {
+                    attr: value
+                    for attr in ("pres_def_id", "dcql_query_id")
+                    if (value := request.query.get(attr))
+                }
+                records = await OID4VPRequest.query(session=session, tag_filter=filter_)
+                results = [record.serialize() for record in records]
+    except (StorageError, BaseModelError, StorageNotFoundError) as err:
+        raise web.HTTPBadRequest(reason=err.roll_up) from err
+    return web.json_response({"results": results})
+
+
+class CreateDCQLQueryRequestSchema(OpenAPISchema):
+    """Request schema for creating a DCQL Query."""
+
+    credentials = fields.List(
+        fields.Nested(CredentialQuerySchema),
+        required=True,
+        metadata={"description": "A list of Credential Queries."},
+    )
+
+    credential_sets = fields.List(
+        fields.Nested(CredentialSetQuerySchema),
+        required=False,
+        metadata={"description": "A list of Credential Set Queries."},
+    )
+
+
+class CreateDCQLQueryResponseSchema(OpenAPISchema):
+    """Response schema from creating a DCQL Query."""
+
+    dcql_query = fields.Dict(
+        required=True,
+        metadata={
+            "description": "The DCQL query.",
+        },
+    )
+
+
+@docs(
+    tags=["oid4vp"],
+    summary="Create a DCQL Query record.",
+)
+@request_schema(CreateDCQLQueryRequestSchema())
+@response_schema(CreateDCQLQueryResponseSchema())
+async def create_dcql_query(request: web.Request):
+    """Create a DCQL Query Record."""
+
+    body = await request.json()
+    context: AdminRequestContext = request["context"]
+
+    credentials = body["credentials"]
+    credential_sets = body.get("credential_sets")
+
+    async with context.session() as session:
+        cred_queries = []
+        for cred in credentials:
+            cred_queries.append(CredentialQuery.deserialize(cred))
+
+        dcql_query = DCQLQuery(credentials=cred_queries, credential_sets=credential_sets)
+        await dcql_query.save(session=session)
+
+    return web.json_response(
+        {
+            "dcql_query": dcql_query.serialize(),
+            "dcql_query_id": dcql_query.dcql_query_id,
+        }
+    )
+
+
+class DCQLQueriesQuerySchema(OpenAPISchema):
+    """Parameters and validators for DCQL Query List query."""
+
+    dcql_query_id = fields.Str(
+        required=False,
+        metadata={"description": "Filter by presentation identifier."},
+    )
+
+
+class DCQLQueryListSchema(OpenAPISchema):
+    """Result schema for an DCQL Query List query."""
+
+    results = fields.Nested(
+        DCQLQuerySchema(),
+        many=True,
+        metadata={"description": "Presentations"},
+    )
+
+
+@docs(
+    tags=["oid4vp"],
+    summary="List all DCQL Query records.",
+)
+@querystring_schema(DCQLQueriesQuerySchema())
+@response_schema(DCQLQueryListSchema())
+async def list_dcql_queries(request: web.Request):
+    """List all DCQL Query Records."""
+
+    context: AdminRequestContext = request["context"]
+
+    try:
+        async with context.profile.session() as session:
+            if dcql_query_id := request.query.get("dcql_query_id"):
+                record = await DCQLQuery.retrieve_by_id(session, dcql_query_id)
+                results = [record.serialize()]
+            else:
+                records = await DCQLQuery.query(session=session)
+                results = [record.serialize() for record in records]
+    except (StorageError, BaseModelError, StorageNotFoundError) as err:
+        raise web.HTTPBadRequest(reason=err.roll_up) from err
+    return web.json_response({"results": results})
+
+
+class DCQLQueryIDMatchSchema(OpenAPISchema):
+    """Path parameters and validators for request taking presentation id."""
+
+    dcql_query_id = fields.Str(
+        required=True,
+        metadata={
+            "description": "Presentation identifier",
+        },
+    )
+
+
+class GetDCQLQueryResponseSchema(OpenAPISchema):
+    """Request handler for returning a single DCQL Query."""
+
+    dcql_query_id = fields.Str(
+        required=True,
+        metadata={
+            "description": "Query identifier",
+        },
+    )
+
+    credentials = fields.List(
+        fields.Nested(CredentialQuerySchema),
+        required=True,
+        metadata={
+            "description": "A list of credential query objects",
+        },
+    )
+
+    credential_sets = fields.List(
+        fields.Nested(CredentialSetQuerySchema),
+        required=False,
+        metadata={
+            "description": "A list of credential set query objects",
+        },
+    )
+
+
+@docs(
+    tags=["oid4vp"],
+    summary="Fetch DCQL query.",
+)
+@match_info_schema(DCQLQueryIDMatchSchema())
+@response_schema(GetDCQLQueryResponseSchema())
+async def get_dcql_query_by_id(request: web.Request):
+    """Request handler for retrieving a DCQL query."""
+
+    context: AdminRequestContext = request["context"]
+    dcql_query_id = request.match_info["dcql_query_id"]
+
+    try:
+        async with context.session() as session:
+            record = await DCQLQuery.retrieve_by_id(session, dcql_query_id)
+
+    except StorageNotFoundError as err:
+        raise web.HTTPNotFound(reason=err.roll_up) from err
+    except (StorageError, BaseModelError) as err:
+        raise web.HTTPBadRequest(reason=err.roll_up) from err
+
+    return web.json_response(record.serialize())
+
+
+@docs(
+    tags=["oid4vp"],
+    summary="Delete DCQL Query.",
+)
+@match_info_schema(DCQLQueryIDMatchSchema())
+@response_schema(DCQLQuerySchema())
+async def dcql_query_remove(request: web.Request):
+    """Request handler for removing a DCQL Query."""
+
+    context: AdminRequestContext = request["context"]
+    dcql_query_id = request.match_info["dcql_query_id"]
+
+    try:
+        async with context.session() as session:
+            record = await DCQLQuery.retrieve_by_id(session, dcql_query_id)
+            await record.delete_record(session)
+    except StorageNotFoundError as err:
+        raise web.HTTPNotFound(reason=err.roll_up) from err
+    except (StorageError, BaseModelError) as err:
+        raise web.HTTPBadRequest(reason=err.roll_up) from err
+
+    return web.json_response(record.serialize())
 
 
 class CreateOID4VPPresDefRequestSchema(OpenAPISchema):
@@ -822,6 +1417,22 @@ class CreateOID4VPPresDefRequestSchema(OpenAPISchema):
         required=True,
         metadata={
             "description": "The presentation definition",
+        },
+    )
+
+
+class CreateOID4VPPresDefResponseSchema(OpenAPISchema):
+    """Response schema for creating an OID4VP PresDef."""
+
+    pres_def = fields.Dict(
+        required=True,
+        metadata={"descripton": "The created presentation definition"},
+    )
+
+    pres_def_id = fields.Str(
+        required=True,
+        metadata={
+            "description": "Presentation identifier",
         },
     )
 
@@ -850,6 +1461,112 @@ async def create_oid4vp_pres_def(request: web.Request):
             "pres_def_id": record.pres_def_id,
         }
     )
+
+
+class PresDefIDMatchSchema(OpenAPISchema):
+    """Path parameters and validators for request taking presentation id."""
+
+    pres_def_id = fields.Str(
+        required=True,
+        metadata={
+            "description": "Presentation identifier",
+        },
+    )
+
+
+class UpdateOID4VPPresDefRequestSchema(OpenAPISchema):
+    """Request schema for updating an OID4VP PresDef."""
+
+    pres_def = fields.Dict(
+        required=True,
+        metadata={
+            "description": "The presentation definition",
+        },
+    )
+
+
+class UpdateOID4VPPresDefResponseSchema(OpenAPISchema):
+    """Response schema for updating an OID4VP PresDef."""
+
+    pres_def = fields.Dict(
+        required=True,
+        metadata={"descripton": "The updated presentation definition"},
+    )
+
+    pres_def_id = fields.Str(
+        required=True,
+        metadata={
+            "description": "Presentation identifier",
+        },
+    )
+
+
+@docs(
+    tags=["oid4vp"],
+    summary="Update an OID4VP Presentation Definition.",
+)
+@match_info_schema(PresDefIDMatchSchema())
+@request_schema(UpdateOID4VPPresDefRequestSchema())
+@response_schema(UpdateOID4VPPresDefResponseSchema())
+async def update_oid4vp_pres_def(request: web.Request):
+    """Update an OID4VP Presentation Request."""
+
+    context: AdminRequestContext = request["context"]
+    body = await request.json()
+    pres_def_id = request.match_info["pres_def_id"]
+
+    try:
+        async with context.session() as session:
+            record = await OID4VPPresDef.retrieve_by_id(session, pres_def_id)
+            record.pres_def = body["pres_def"]
+            await record.save(session)
+
+    except StorageNotFoundError as err:
+        raise web.HTTPNotFound(reason=err.roll_up) from err
+    except (StorageError, BaseModelError) as err:
+        raise web.HTTPBadRequest(reason=err.roll_up) from err
+
+    return web.json_response(
+        {
+            "pres_def": record.serialize(),
+            "pres_def_id": record.pres_def_id,
+        }
+    )
+
+
+class PresRequestIDMatchSchema(OpenAPISchema):
+    """Path parameters and validators for request taking presentation request id."""
+
+    request_id = fields.Str(
+        required=True,
+        metadata={
+            "description": "Request identifier",
+        },
+    )
+
+
+@docs(
+    tags=["oid4vp"],
+    summary="Fetch presentation request.",
+)
+@match_info_schema(PresRequestIDMatchSchema())
+@response_schema(OID4VPRequestSchema())
+async def get_oid4vp_request_by_id(request: web.Request):
+    """Request handler for retrieving a presentation request."""
+
+    context: AdminRequestContext = request["context"]
+    request_id = request.match_info["request_id"]
+
+    try:
+        async with context.session() as session:
+            record = await OID4VPRequest.retrieve_by_id(session, request_id)
+
+    except StorageNotFoundError as err:
+        raise web.HTTPNotFound(reason=err.roll_up) from err
+    except (StorageError, BaseModelError) as err:
+        raise web.HTTPBadRequest(reason=err.roll_up) from err
+
+    return web.json_response(record.serialize())
 
 
 class OID4VPPresQuerySchema(OpenAPISchema):
@@ -894,9 +1611,7 @@ async def list_oid4vp_presentations(request: web.Request):
     try:
         async with context.profile.session() as session:
             if presentation_id := request.query.get("presentation_id"):
-                record = await OID4VPPresentation.retrieve_by_id(
-                    session, presentation_id
-                )
+                record = await OID4VPPresentation.retrieve_by_id(session, presentation_id)
                 results = [record.serialize()]
             else:
                 filter_ = {
@@ -913,6 +1628,15 @@ async def list_oid4vp_presentations(request: web.Request):
     return web.json_response({"results": results})
 
 
+class OID4VPPresDefQuerySchema(OpenAPISchema):
+    """Parameters and validators for presentations list query."""
+
+    pres_def_id = fields.Str(
+        required=False,
+        metadata={"description": "Filter by presentation definition identifier."},
+    )
+
+
 class OID4VPPresDefListSchema(OpenAPISchema):
     """Result schema for an presentations query."""
 
@@ -927,6 +1651,7 @@ class OID4VPPresDefListSchema(OpenAPISchema):
     tags=["oid4vp"],
     summary="Fetch all Presentation Definitions.",
 )
+@querystring_schema(OID4VPPresDefQuerySchema())
 @response_schema(OID4VPPresDefListSchema())
 async def list_oid4vp_pres_defs(request: web.Request):
     """Request handler for searching presentations."""
@@ -934,33 +1659,28 @@ async def list_oid4vp_pres_defs(request: web.Request):
     context: AdminRequestContext = request["context"]
 
     try:
-        async with context.profile.session() as session:
-            records = await OID4VPPresDef.query(session=session)
-            results = [record.serialize() for record in records]
+        if pres_def_id := request.query.get("pres_def_id"):
+            async with context.profile.session() as session:
+                record = await OID4VPPresDef.retrieve_by_id(session, pres_def_id)
+                results = [record.serialize()]
+
+        else:
+            async with context.profile.session() as session:
+                records = await OID4VPPresDef.query(session=session)
+                results = [record.serialize() for record in records]
     except (StorageError, BaseModelError, StorageNotFoundError) as err:
         raise web.HTTPBadRequest(reason=err.roll_up) from err
     return web.json_response({"results": results})
 
 
-class PresDefIDMatchSchema(OpenAPISchema):
-    """Path parameters and validators for request taking presentation id."""
-
-    pres_def_id = fields.Str(
-        required=True,
-        metadata={
-            "description": "Presentation identifier",
-        },
-    )
-
-
 @docs(
     tags=["oid4vp"],
-    summary="Fetch presentation.",
+    summary="Fetch presentation definition.",
 )
 @match_info_schema(PresDefIDMatchSchema())
 @response_schema(OID4VPPresDefSchema())
 async def get_oid4vp_pres_def_by_id(request: web.Request):
-    """Request handler for retrieving a presentation."""
+    """Request handler for retrieving a presentation definition."""
 
     context: AdminRequestContext = request["context"]
     pres_def_id = request.match_info["pres_def_id"]
@@ -1163,9 +1883,7 @@ async def create_did_jwk(request: web.Request):
         jwk = json.loads(key.get_jwk_public())
         jwk["use"] = "sig"
 
-        did = "did:jwk:" + bytes_to_b64(
-            json.dumps(jwk).encode(), urlsafe=True, pad=False
-        )
+        did = "did:jwk:" + bytes_to_b64(json.dumps(jwk).encode(), urlsafe=True, pad=False)
 
         did_info = DIDInfo(
             did=did,
@@ -1186,15 +1904,24 @@ async def register(app: web.Application):
         [
             web.get("/oid4vci/credential-offer", get_cred_offer, allow_head=False),
             web.get(
+                "/oid4vci/credential-offer-by-ref",
+                get_cred_offer_by_ref,
+                allow_head=False,
+            ),
+            web.patch("/oid4vci/credential-refresh/{refresh_id}", credential_refresh),
+            web.get(
                 "/oid4vci/exchange/records",
                 list_exchange_records,
                 allow_head=False,
             ),
             web.post("/oid4vci/exchange/create", exchange_create),
-            web.delete("/oid4vci/exchange/records/{exchange_id}", exchange_delete),
-            web.post(
-                "/oid4vci/credential-supported/create", supported_credential_create
+            web.get(
+                "/oid4vci/exchange/records/{exchange_id}",
+                get_exchange_by_id,
+                allow_head=False,
             ),
+            web.delete("/oid4vci/exchange/records/{exchange_id}", exchange_delete),
+            web.post("/oid4vci/credential-supported/create", supported_credential_create),
             web.post(
                 "/oid4vci/credential-supported/create/jwt",
                 supported_credential_create_jwt,
@@ -1204,23 +1931,41 @@ async def register(app: web.Application):
                 supported_credential_list,
                 allow_head=False,
             ),
+            web.get(
+                "/oid4vci/credential-supported/records/{supported_cred_id}",
+                get_supported_credential_by_id,
+                allow_head=False,
+            ),
+            web.put(
+                "/oid4vci/credential-supported/records/jwt/{supported_cred_id}",
+                update_supported_credential_jwt_vc,
+            ),
             web.delete(
-                "/oid4vci/exchange-supported/records/{supported_cred_id}",
+                "/oid4vci/credential-supported/records/jwt/{supported_cred_id}",
                 supported_credential_remove,
             ),
             web.post("/oid4vp/request", create_oid4vp_request),
+            web.get("/oid4vp/requests", list_oid4vp_requests),
+            web.get("/oid4vp/request/{request_id}", get_oid4vp_request_by_id),
             web.post("/oid4vp/presentation-definition", create_oid4vp_pres_def),
             web.get("/oid4vp/presentation-definitions", list_oid4vp_pres_defs),
             web.get(
                 "/oid4vp/presentation-definition/{pres_def_id}",
                 get_oid4vp_pres_def_by_id,
             ),
+            web.put(
+                "/oid4vp/presentation-definition/{pres_def_id}", update_oid4vp_pres_def
+            ),
             web.delete(
                 "/oid4vp/presentation-definition/{pres_def_id}", oid4vp_pres_def_remove
             ),
             web.get("/oid4vp/presentations", list_oid4vp_presentations),
-            web.get("/oid4vp/presentation/{request_id}", get_oid4vp_pres_by_id),
+            web.get("/oid4vp/presentation/{presentation_id}", get_oid4vp_pres_by_id),
             web.delete("/oid4vp/presentation/{presentation_id}", oid4vp_pres_remove),
+            web.post("/oid4vp/dcql/queries", create_dcql_query),
+            web.get("/oid4vp/dcql/queries", list_dcql_queries),
+            web.get("/oid4vp/dcql/query/{dcql_query_id}", get_dcql_query_by_id),
+            web.delete("/oid4vp/dcql/query/{dcql_query_id}", dcql_query_remove),
             web.post("/did/jwk/create", create_did_jwk),
         ]
     )

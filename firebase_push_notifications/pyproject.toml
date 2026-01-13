@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "firebase_push_notifications"
 version = "0.1.0"
-description = " (Supported acapy-agent version: 1.1.0) "
+description = " (Supported acapy-agent version: 1.4.0) "
 authors = []
 
 [tool.poetry.dependencies]
@@ -9,29 +9,30 @@ python = "^3.12"
 
 # Define ACA-Py as an optional/extra dependency so it can be
 # explicitly installed with the plugin if desired.
-acapy-agent = { version = "~1.1.1", optional = true }
+acapy-agent = { version = "~1.4.0", optional = true }
 
-marshmallow = "^3.20.1"
-google-auth = "^2.36.0"
-google-api-python-client = "^2.153.0"
+marshmallow = "^3.23.3"
+google-auth = "^2.43.0"
+google-api-python-client = "^2.187.0"
 requests = "^2.31.0"
+protobuf = "6.33.1"
 
 [tool.poetry.extras]
 aca-py = ["acapy-agent"]
 
-[tool.poetry.dev-dependencies]
-ruff = "^0.7.3"
-pytest = "^8.3.3"
-pytest-asyncio = "^0.24.0"
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.14.5"
+pytest = "^8.3.5"
+pytest-asyncio = "^1.2.0"
 pytest-cov = "^5.0.0"
 pytest-ruff = "^0.4.1"
 
 [tool.poetry.group.integration.dependencies]
-aries-askar = { version = "~0.3.2" }
+aries-askar = { version = "~0.4.6" }
 indy-credx = { version = "~1.1.1" }
 indy-vdr = { version = "~0.4.1" }
 python3-indy = { version = "^1.11.1" }
-anoncreds = { version = "0.2.0" }
+anoncreds = { version = "0.2.3" }
 
 [tool.ruff]
 line-length = 90
@@ -60,6 +61,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["F841", "D", "E501"]
+"**/{demo}/*" = ["F841", "D", "E501"]
 
 [tool.pytest.ini_options]
 testpaths = "firebase_push_notifications"
@@ -86,6 +88,6 @@ show_missing = true
 output = ".test-reports/coverage.xml"
 
 [build-system]
-requires = ["setuptools", "poetry-core>=1.2"]
+requires = ["setuptools", "poetry-core>=2.1"]
 build-backend = "poetry.core.masonry.api"
 
